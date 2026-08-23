@@ -1,0 +1,5 @@
+# No Python 3.13+/3.14 ainda nao ha wheel oficial do pacote "pygame" no PyPI.
+# O pygame-ce (Community Edition) e um substituto direto: mesmo `import pygame`,
+# mesma API usada neste jogo, e ja possui builds para versoes recentes do Python.
+# Se voce estiver em Python <= 3.12, "pygame>=2.5.0" tambem funciona normalmente.
+pygame-ce>=2.5.0
