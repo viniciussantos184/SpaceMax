@@ -132,7 +132,7 @@ def desenhar_tela_inicio(tela, fontes, recorde, frame):
         ("GIRAR", "SETAS ESQ/DIR  ou  A / D"),
         ("ACELERAR", "SETA CIMA  ou  W"),
         ("FREAR", "SETA BAIXO  ou  S"),
-        ("IMPULSO", "SHIFT"),
+        ("IMPULSO", "CONTROL"),
         ("ATIRAR", "ESPACO"),
         ("SAIR", "ESC"),
     ]

@@ -6,6 +6,7 @@ Ponto de entrada do jogo. Toda a logica fica no pacote `spacemax/`.
 Controles:
     SETAS / WASD       -> movem a nave em qualquer direcao
     ESPACO              -> atira
+    CONTROL             -> impulso
     ESC                 -> sai do jogo
     Na tela inicial / game over -> ESPACO ou clique para (re)comecar
 

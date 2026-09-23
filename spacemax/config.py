@@ -35,7 +35,7 @@ FREIO_NAVE = 0.9  # multiplicador de velocidade ao frear
 ATRITO_NAVE = 0.987  # arrasto: a nave desliza, mas continua controlavel
 VELOCIDADE_MAX_NAVE = 8.0
 
-IMPULSO_DASH = 7.5  # velocidade extra do impulso (SHIFT, sem recarga)
+IMPULSO_DASH = 7.5  # velocidade extra do impulso (CONTROL, sem recarga)
 VELOCIDADE_MAX_DASH = 13.0  # limite de velocidade logo apos o impulso
 DURACAO_DASH = 14  # frames em que o limite de velocidade fica mais alto
 

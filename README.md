@@ -11,7 +11,7 @@ viaje por galaxias diferentes a cada 3 niveis.
 - **Seta esquerda/direita ou A/D**: gira a nave (o giro acelera suavemente e para rapido ao soltar)
 - **Seta para cima ou W**: acelera (o motor ganha potencia aos poucos e a nave mantem o embalo)
 - **Seta para baixo ou S**: freia
-- **SHIFT**: impulso, uma arrancada rapida para frente (ilimitado, sem recarga)
+- **CONTROL**: impulso, uma arrancada rapida para frente (ilimitado, sem recarga)
 - **ESPACO**: atira na direcao em que a nave aponta
 - **ESC**: sai do jogo
 - Na tela inicial ou de Game Over, pressione ESPACO/clique para (re)comecar
@@ -54,7 +54,7 @@ Depois do setor 06 o ciclo recomeca. Os fundos sao gerados por codigo
 
 ## Elementos implementados
 
-- Nave vetorial que gira 360 graus com giro progressivo, acelera com inercia, freia, usa impulso (SHIFT) e atira na direcao em que aponta
+- Nave vetorial que gira 360 graus com giro progressivo, acelera com inercia, freia, usa impulso (CONTROL) e atira na direcao em que aponta
 - Rastro de exaustao do motor, jatos laterais ao girar e rastro fantasma durante o impulso
 - Asteroides que se quebram em pedacos menores (grande -> medio -> pequeno)
 - Tela sem bordas: tudo atravessa as laterais e reaparece do outro lado

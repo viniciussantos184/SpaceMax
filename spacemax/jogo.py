@@ -131,7 +131,7 @@ class Jogo:
                 if evento.key == pygame.K_SPACE:
                     self.acao_principal()
 
-                if evento.key in (pygame.K_LSHIFT, pygame.K_RSHIFT):
+                if evento.key in (pygame.K_LCTRL, pygame.K_RCTRL):
                     self.usar_dash()
 
             if evento.type == pygame.MOUSEBUTTONDOWN:
