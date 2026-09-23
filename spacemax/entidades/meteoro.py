@@ -1,60 +1,82 @@
-"""Meteoros que caem do topo."""
+"""Asteroides que se quebram em pedacos menores ao serem atingidos."""
 
 import math
 import random
 
-import pygame
-
-from ..config import ALTURA, COR_METEORO, COR_METEORO_BORDA, LARGURA
+from .. import grafico
+from ..config import (
+    ALTURA,
+    ASTEROIDE_GRANDE,
+    ASTEROIDE_PEQUENO,
+    COR_ASTEROIDE,
+    DADOS_ASTEROIDE,
+    FRAGMENTOS_POR_QUEBRA,
+    LARGURA,
+)
 from .base import EntidadeColidivel
 
 
 class Meteoro(EntidadeColidivel):
-    def __init__(self, velocidade_min: float, velocidade_max: float):
-        self.raio: int = random.randint(16, 30)
-        super().__init__(random.uniform(self.raio, LARGURA - self.raio), -self.raio)
-        self.velocidade_y: float = random.uniform(velocidade_min, velocidade_max)
-        self.velocidade_x: float = random.uniform(-1.0, 1.0)
-        self.angulo: float = 0
-        self.velocidade_angular: float = random.uniform(-3, 3)
-        # vida proporcional ao tamanho: meteoros grandes exigem mais de 1 tiro
-        self.vida: int = 1 if self.raio < 23 else 2
+    def __init__(
+        self,
+        x: float,
+        y: float,
+        tamanho: int = ASTEROIDE_GRANDE,
+        velocidade: float = 1.0,
+        angulo: float | None = None,
+    ):
+        raio, pontos, multiplicador = DADOS_ASTEROIDE[tamanho]
+        if angulo is None:
+            angulo = random.uniform(0, 360)
+        rad = math.radians(angulo)
+        veloc = velocidade * multiplicador * random.uniform(0.8, 1.2)
+        super().__init__(x, y, raio, math.sin(rad) * veloc, -math.cos(rad) * veloc)
 
-        pontos = random.randint(7, 10)
+        self.tamanho: int = tamanho
+        self.pontos: int = pontos
+        self.velocidade_base: float = velocidade
+        self.angulo: float = random.uniform(0, 360)
+        self.velocidade_angular: float = random.uniform(-1.2, 1.2) * multiplicador
+
+        # contorno irregular: o raio varia em cada vertice
+        vertices = random.randint(9, 12)
         self.forma: list[tuple[float, float]] = []
-        for i in range(pontos):
-            ang = (2 * math.pi / pontos) * i
-            variacao = random.uniform(0.75, 1.0)
-            self.forma.append((ang, variacao))
+        for i in range(vertices):
+            ang = (2 * math.pi / vertices) * i
+            r = raio * random.uniform(0.72, 1.0)
+            self.forma.append((math.cos(ang) * r, math.sin(ang) * r))
+
+    @classmethod
+    def na_borda(cls, velocidade: float) -> "Meteoro":
+        """Cria um asteroide grande entrando por uma borda aleatoria da tela."""
+        raio = DADOS_ASTEROIDE[ASTEROIDE_GRANDE][0]
+        borda = random.choice(["topo", "base", "esquerda", "direita"])
+        if borda == "topo":
+            x, y = random.uniform(0, LARGURA), -raio
+        elif borda == "base":
+            x, y = random.uniform(0, LARGURA), ALTURA + raio
+        elif borda == "esquerda":
+            x, y = -raio, random.uniform(0, ALTURA)
+        else:
+            x, y = LARGURA + raio, random.uniform(0, ALTURA)
+
+        # aponta aproximadamente para o centro, com desvio aleatorio
+        alvo = math.degrees(math.atan2(LARGURA / 2 - x, -(ALTURA / 2 - y)))
+        return cls(x, y, ASTEROIDE_GRANDE, velocidade, alvo + random.uniform(-40, 40))
+
+    def quebrar(self) -> list["Meteoro"]:
+        """Retorna os fragmentos menores (lista vazia se ja for o menor)."""
+        if self.tamanho == ASTEROIDE_PEQUENO:
+            return []
+        return [
+            Meteoro(self.x, self.y, self.tamanho - 1, self.velocidade_base)
+            for _ in range(FRAGMENTOS_POR_QUEBRA)
+        ]
 
     def atualizar(self):
-        self.y += self.velocidade_y
-        self.x += self.velocidade_x
+        self.mover()
         self.angulo += self.velocidade_angular
 
-        if self.x - self.raio < 0 or self.x + self.raio > LARGURA:
-            self.velocidade_x *= -1
-            self.x = max(self.raio, min(LARGURA - self.raio, self.x))
-
-    def fora_da_tela(self):
-        return self.y - self.raio > ALTURA
-
-    def levar_dano(self):
-        self.vida -= 1
-        return self.vida <= 0
-
-    def rect(self):
-        return pygame.Rect(
-            int(self.x - self.raio), int(self.y - self.raio), self.raio * 2, self.raio * 2
-        )
-
     def desenhar(self, tela):
-        angulo_rad = math.radians(self.angulo)
-        pontos_tela = []
-        for ang, variacao in self.forma:
-            a = ang + angulo_rad
-            r = self.raio * variacao
-            pontos_tela.append((self.x + r * math.cos(a), self.y + r * math.sin(a)))
-
-        pygame.draw.polygon(tela, COR_METEORO, pontos_tela)
-        pygame.draw.polygon(tela, COR_METEORO_BORDA, pontos_tela, 2)
+        pontos = grafico.rotacionar(self.forma, self.angulo, self.x, self.y)
+        grafico.contorno(tela, COR_ASTEROIDE, pontos)

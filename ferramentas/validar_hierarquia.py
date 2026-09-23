@@ -4,7 +4,7 @@ Valida a hierarquia de classes das entidades do SpaceMax.
 Verifica, por introspeccao, que:
   - toda classe exportada por `spacemax.entidades` herda de `Entidade`;
   - nenhuma classe concreta deixou metodo abstrato sem implementar;
-  - toda `EntidadeColidivel` implementa `rect()` retornando um `pygame.Rect`;
+  - toda `EntidadeColidivel` tem `raio` positivo (usado na colisao circular);
   - as classes base nao podem ser instanciadas diretamente.
 
 Tambem imprime a arvore de heranca encontrada.
@@ -19,16 +19,14 @@ import sys
 os.environ.setdefault("PYGAME_HIDE_SUPPORT_PROMPT", "1")
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-import pygame  # noqa: E402
-
 from spacemax import entidades  # noqa: E402
 from spacemax.entidades import Entidade, EntidadeColidivel  # noqa: E402
 
 # argumentos para instanciar as classes que exigem parametros no construtor
 ARGUMENTOS_TESTE = {
-    "Tiro": (100, 100),
+    "Tiro": (100, 100, 0),
     "Particula": (100, 100),
-    "Meteoro": (2.0, 3.5),
+    "Meteoro": (100, 100),
 }
 
 
@@ -74,10 +72,8 @@ def validar():
         if not (hasattr(instancia, "x") and hasattr(instancia, "y")):
             erros.append(f"{nome} nao inicializa x/y (faltou super().__init__?)")
 
-        if isinstance(instancia, EntidadeColidivel) and not isinstance(
-            instancia.rect(), pygame.Rect
-        ):
-            erros.append(f"{nome}.rect() nao retorna pygame.Rect")
+        if isinstance(instancia, EntidadeColidivel) and not instancia.raio > 0:
+            erros.append(f"{nome} nao tem raio de colisao positivo")
 
     return erros
 

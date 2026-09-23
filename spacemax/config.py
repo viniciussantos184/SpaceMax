@@ -1,52 +1,80 @@
-"""Configuracoes gerais do jogo (tela, cores, velocidades, dificuldade)."""
+"""Configuracoes gerais do jogo (tela, paleta, fisica, dificuldade)."""
 
 import os
 
 # ---------------------------------------------------------------------------
 # Tela
 # ---------------------------------------------------------------------------
-LARGURA, ALTURA = 480, 720
+LARGURA, ALTURA = 960, 640
 FPS = 60
 
 # ---------------------------------------------------------------------------
-# Cores
+# Paleta tech minimalista
 # ---------------------------------------------------------------------------
-COR_FUNDO = (8, 10, 30)
-COR_ESTRELA = (255, 255, 255)
-COR_NAVE = (60, 200, 255)
-COR_NAVE_BORDA = (255, 255, 255)
-COR_METEORO = (150, 110, 90)
-COR_METEORO_BORDA = (90, 60, 45)
-COR_TIRO = (255, 230, 90)
-COR_TEXTO = (255, 255, 255)
-COR_TEXTO_SOMBRA = (0, 0, 0)
-COR_ITEM = (255, 215, 60)
-COR_VIDA = (255, 90, 90)
+COR_FUNDO = (9, 11, 16)
+COR_GRADE = (18, 22, 30)
+COR_ESTRELA = (70, 80, 95)
+COR_PRIMARIA = (92, 225, 230)  # ciano: nave, tiros, destaques
+COR_SECUNDARIA = (235, 240, 245)  # branco suave: textos principais
+COR_APAGADA = (95, 105, 120)  # cinza: rotulos e textos secundarios
+COR_ASTEROIDE = (170, 178, 190)
+COR_PERIGO = (255, 84, 112)  # vermelho: vidas, colisao
+COR_ITEM = (255, 200, 87)  # ambar: escudo
+COR_CHAMA = (255, 150, 70)
 
 # ---------------------------------------------------------------------------
-# Jogador
+# Nave
 # ---------------------------------------------------------------------------
-VELOCIDADE_NAVE = 6.5
-VELOCIDADE_TIRO = 11
-COOLDOWN_TIRO = 14  # frames entre disparos
+ROTACAO_MAX_NAVE = 5.6  # graus por frame (velocidade maxima de giro)
+ACELERACAO_ROTACAO = 0.85  # quanto o giro ganha por frame segurando a tecla
+AMORTECIMENTO_ROTACAO = 0.55  # ao soltar, o giro para rapido (sem "patinar")
+
+ACELERACAO_NAVE = 0.24
+RAMPA_PROPULSOR = 0.14  # potencia do motor sobe de 0 a 1 em ~7 frames
+FREIO_NAVE = 0.9  # multiplicador de velocidade ao frear
+ATRITO_NAVE = 0.987  # arrasto: a nave desliza, mas continua controlavel
+VELOCIDADE_MAX_NAVE = 8.0
+
+IMPULSO_DASH = 7.5  # velocidade extra do impulso (SHIFT)
+VELOCIDADE_MAX_DASH = 13.0  # limite de velocidade logo apos o impulso
+COOLDOWN_DASH = 100  # frames para recarregar o impulso
+DURACAO_DASH = 14  # frames em que o limite de velocidade fica mais alto
+
+VELOCIDADE_TIRO = 10.5
+ALCANCE_TIRO = 52  # frames de vida do tiro
+COOLDOWN_TIRO = 9  # frames entre disparos
 
 VIDAS_INICIAIS = 3
+DURACAO_INVENCIVEL = 2 * FPS  # apos ser atingido
+DURACAO_ESCUDO = 6 * FPS  # item de escudo
+
+# ---------------------------------------------------------------------------
+# Asteroides: tamanho -> (raio, pontos, multiplicador de velocidade)
+# ---------------------------------------------------------------------------
+ASTEROIDE_GRANDE, ASTEROIDE_MEDIO, ASTEROIDE_PEQUENO = 3, 2, 1
+DADOS_ASTEROIDE = {
+    ASTEROIDE_GRANDE: (44, 20, 1.0),
+    ASTEROIDE_MEDIO: (25, 50, 1.45),
+    ASTEROIDE_PEQUENO: (13, 100, 1.9),
+}
+FRAGMENTOS_POR_QUEBRA = 2
 
 # ---------------------------------------------------------------------------
 # Dificuldade
 # ---------------------------------------------------------------------------
-PONTOS_POR_NIVEL = 8  # a cada N pontos o jogador sobe de nivel
+PONTOS_POR_NIVEL = 1000
 
-VELOCIDADE_METEORO_MIN_INICIAL = 2.0
-VELOCIDADE_METEORO_MAX_INICIAL = 3.5
-AUMENTO_VELOCIDADE_POR_NIVEL = 0.35
-VELOCIDADE_METEORO_TETO = 9.5
+ASTEROIDES_INICIAIS = 4
+VELOCIDADE_ASTEROIDE_INICIAL = 1.1
+AUMENTO_VELOCIDADE_POR_NIVEL = 0.12
+VELOCIDADE_ASTEROIDE_TETO = 3.2
 
-INTERVALO_SPAWN_INICIAL = 65  # frames entre meteoros
-INTERVALO_SPAWN_MINIMO = 16
-REDUCAO_SPAWN_POR_NIVEL = 6
+INTERVALO_SPAWN_INICIAL = 260  # frames entre novos asteroides grandes
+INTERVALO_SPAWN_MINIMO = 90
+REDUCAO_SPAWN_POR_NIVEL = 20
+MAX_ASTEROIDES = 22  # limite de asteroides na tela (inclui fragmentos)
 
-DURACAO_AVISO_NIVEL = 120  # frames que o aviso "NIVEL X" fica visivel
+DURACAO_AVISO_NIVEL = 120  # frames que o aviso "LEVEL X" fica visivel
 
 # ---------------------------------------------------------------------------
 # Arquivos

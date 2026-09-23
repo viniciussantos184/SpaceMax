@@ -3,19 +3,26 @@ title SpaceMax - Estados do jogo
 
 [*] --> Inicio
 
-state "Inicio" as Inicio : tela inicial com titulo,\ncontroles e recorde
+state "Inicio" as Inicio : titulo, controles e recorde\n(asteroides flutuam ao fundo)
 state "Jogando" as Jogando {
   state "Normal" as Normal
-  state "Com escudo" as Escudo : imune a colisoes
+  state "Invencivel" as Invencivel : nave pisca no centro\n(atravessa asteroides)
+  state "Com escudo" as Escudo : destroi os asteroides\nque tocar
 
-  [*] --> Normal
-  Normal --> Escudo : coleta item (5 s)
-  Normal --> Escudo : perde vida e vidas > 0 (2 s)
+  [*] --> Invencivel : inicio da partida
+  Invencivel --> Normal : tempo_invencivel chega a 0
+  Normal --> Invencivel : atingida e vidas > 0\n[reaparecer()]
+  Normal --> Escudo : coleta item (6 s)
   Escudo --> Normal : tempo_escudo chega a 0
+  --
+  state "Galaxia N" as GalaxiaN
+  state "Galaxia N+1" as GalaxiaN1
+  [*] --> GalaxiaN
+  GalaxiaN --> GalaxiaN1 : nivel passa de 10 em 10\n[fundo.ir_para()]
 }
-state "Game Over" as GameOver : mostra pontuacao e recorde\n(salva recorde se superado)
+state "Game Over" as GameOver : pontos, nivel e setor\n(salva recorde se superado)
 
-Inicio --> Jogando : ESPACO / clique
+Inicio --> Jogando : ESPACO / clique\n[reiniciar()]
 Jogando --> GameOver : vidas == 0
 GameOver --> Jogando : ESPACO / clique\n[reiniciar()]
 

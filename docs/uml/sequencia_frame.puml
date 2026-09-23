@@ -4,6 +4,7 @@ title SpaceMax - Sequencia de um frame (estado Jogando)
 actor Jogador
 participant "main.py" as Main
 participant Jogo
+participant PlanoDeFundo as Fundo
 participant Nave
 participant Meteoro
 participant Tiro
@@ -18,41 +19,43 @@ loop a cada frame (60 FPS)
   Jogo -> Jogo : processar_eventos()
 
   group atualizar()
-    Jogo -> Nave : mover(direcao)
+    Jogo -> Fundo : atualizar()
+    Jogo -> Meteoro : atualizar()
+    Jogo -> Jogo : ler_controles()
+    Jogo -> Nave : girar() / acelerar() / frear()
     opt ESPACO e nave.pode_atirar()
       Jogo -> Nave : atirar()
       Nave --> Jogo : Tiro
       Jogo -> Sons : tocar("tiro")
     end
-    opt frames_ate_proximo_spawn <= 0
-      Jogo -> Meteoro ** : Meteoro(vel_min, vel_max)
-    end
+    Jogo -> Nave : atualizar()
+    Jogo -> Nave : emitir_rastro()
+    Nave --> Jogo : particulas do motor
+    Jogo -> Jogo : gerar_asteroides()
     Jogo -> Tiro : atualizar()
-    Jogo -> Meteoro : atualizar()
 
     Jogo -> Jogo : checar_colisoes_tiro_meteoro()
     Jogo -> Tiro : colide_com(meteoro)
     opt tiro acertou meteoro
-      Jogo -> Meteoro : levar_dano()
-      alt meteoro destruido
-        Jogo -> Jogo : pontuacao += 1\natualizar_nivel()
-        Jogo -> Jogo : criar_explosao(x, y)
-        Jogo -> Sons : tocar("explosao")
-      end
+      Jogo -> Jogo : destruir_asteroide(meteoro)
+      Jogo -> Meteoro : quebrar()
+      Meteoro --> Jogo : fragmentos menores
+      Jogo -> Sons : tocar("explosao")
     end
 
     Jogo -> Jogo : checar_colisao_nave()
     Jogo -> Nave : colide_com(meteoro)
-    opt meteoro atingiu nave sem escudo
+    opt meteoro atingiu nave desprotegida
       Jogo -> Jogo : perder_vida()
-      Jogo -> Sons : tocar("colisao")
+      Jogo -> Nave : reaparecer(invencivel)
     end
   end
 
   group desenhar()
-    Jogo -> Nave : desenhar(tela)
+    Jogo -> Fundo : desenhar(tela)
     Jogo -> Meteoro : desenhar(tela)
     Jogo -> Tiro : desenhar(tela)
+    Jogo -> Nave : desenhar(tela)
     Jogo -> UI : desenhar_hud(...)
   end
 end

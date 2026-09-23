@@ -1,8 +1,9 @@
 """Classes base das entidades do jogo."""
 
+import math
 from abc import ABC, abstractmethod
 
-import pygame
+from ..config import ALTURA, LARGURA
 
 
 class Entidade(ABC):
@@ -22,11 +23,34 @@ class Entidade(ABC):
 
 
 class EntidadeColidivel(Entidade):
-    """Entidade que participa do sistema de colisao."""
+    """
+    Entidade que se move no espaco e participa do sistema de colisao.
 
-    @abstractmethod
-    def rect(self) -> pygame.Rect:
-        ...
+    Tem velocidade propria, colisao circular (pelo `raio`) e atravessa as
+    bordas da tela, reaparecendo do lado oposto.
+    """
+
+    def __init__(self, x: float, y: float, raio: float, vx: float = 0.0, vy: float = 0.0):
+        super().__init__(x, y)
+        self.raio: float = raio
+        self.vx: float = vx
+        self.vy: float = vy
+
+    def mover(self):
+        self.x += self.vx
+        self.y += self.vy
+        self.atravessar_bordas()
+
+    def atravessar_bordas(self):
+        r = self.raio
+        if self.x < -r:
+            self.x += LARGURA + 2 * r
+        elif self.x > LARGURA + r:
+            self.x -= LARGURA + 2 * r
+        if self.y < -r:
+            self.y += ALTURA + 2 * r
+        elif self.y > ALTURA + r:
+            self.y -= ALTURA + 2 * r
 
     def colide_com(self, outra: "EntidadeColidivel") -> bool:
-        return self.rect().colliderect(outra.rect())
+        return math.hypot(self.x - outra.x, self.y - outra.y) < self.raio + outra.raio

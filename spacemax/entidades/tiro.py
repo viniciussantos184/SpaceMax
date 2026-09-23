@@ -1,31 +1,37 @@
-"""Tiro disparado pela nave."""
+"""Tiro disparado pela nave na direcao em que ela aponta."""
 
-import pygame
+import math
 
-from ..config import COR_TIRO, VELOCIDADE_TIRO
+from .. import grafico
+from ..config import ALCANCE_TIRO, COR_PRIMARIA, VELOCIDADE_TIRO
 from .base import EntidadeColidivel
 
 
 class Tiro(EntidadeColidivel):
-    LARGURA = 4
-    ALTURA = 14
+    RAIO = 2
+    COMPRIMENTO = 9
 
-    def __init__(self, x: float, y: float):
-        super().__init__(x, y)
+    def __init__(
+        self, x: float, y: float, angulo: float, vx_nave: float = 0.0, vy_nave: float = 0.0
+    ):
+        rad = math.radians(angulo)
+        # herda a velocidade da nave, como no Asteroids classico
+        vx = math.sin(rad) * VELOCIDADE_TIRO + vx_nave
+        vy = -math.cos(rad) * VELOCIDADE_TIRO + vy_nave
+        super().__init__(x, y, self.RAIO, vx, vy)
+        self.vida: int = ALCANCE_TIRO
 
     def atualizar(self):
-        self.y -= VELOCIDADE_TIRO
+        self.mover()
+        self.vida -= 1
 
-    def fora_da_tela(self):
-        return self.y + self.ALTURA < 0
-
-    def rect(self):
-        return pygame.Rect(
-            int(self.x - self.LARGURA / 2),
-            int(self.y - self.ALTURA / 2),
-            self.LARGURA,
-            self.ALTURA,
-        )
+    def expirou(self):
+        return self.vida <= 0
 
     def desenhar(self, tela):
-        pygame.draw.rect(tela, COR_TIRO, self.rect(), border_radius=2)
+        velocidade = math.hypot(self.vx, self.vy) or 1
+        cauda = (
+            self.x - self.vx / velocidade * self.COMPRIMENTO,
+            self.y - self.vy / velocidade * self.COMPRIMENTO,
+        )
+        grafico.linha(tela, COR_PRIMARIA, cauda, (self.x, self.y))

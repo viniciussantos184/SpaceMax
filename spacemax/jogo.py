@@ -8,9 +8,13 @@ import pygame
 from . import interface
 from .config import (
     ALTURA,
+    ASTEROIDES_INICIAIS,
     AUMENTO_VELOCIDADE_POR_NIVEL,
-    COR_FUNDO,
+    COR_ASTEROIDE,
+    COR_PRIMARIA,
     DURACAO_AVISO_NIVEL,
+    DURACAO_ESCUDO,
+    DURACAO_INVENCIVEL,
     ESTADO_GAMEOVER,
     ESTADO_INICIO,
     ESTADO_JOGANDO,
@@ -18,16 +22,19 @@ from .config import (
     INTERVALO_SPAWN_INICIAL,
     INTERVALO_SPAWN_MINIMO,
     LARGURA,
+    MAX_ASTEROIDES,
     PONTOS_POR_NIVEL,
     REDUCAO_SPAWN_POR_NIVEL,
-    VELOCIDADE_METEORO_MAX_INICIAL,
-    VELOCIDADE_METEORO_MIN_INICIAL,
-    VELOCIDADE_METEORO_TETO,
+    VELOCIDADE_ASTEROIDE_INICIAL,
+    VELOCIDADE_ASTEROIDE_TETO,
     VIDAS_INICIAIS,
 )
 from .entidades import Estrela, Item, Meteoro, Nave, Particula, Tiro
+from .galaxias import PlanoDeFundo, indice_galaxia
 from .recorde import carregar_recorde, salvar_recorde
 from .sons import criar_sons, tocar
+
+DURACAO_AVISO_GALAXIA = 3 * FPS
 
 
 class Jogo:
@@ -40,14 +47,16 @@ class Jogo:
         self.fontes: interface.Fontes = interface.Fontes()
         self.sons: dict[str, pygame.mixer.Sound] | None = criar_sons()
         self.recorde: int = carregar_recorde()
-
-        self.estrelas: list[Estrela] = [Estrela() for _ in range(70)]
+        self.fundo: PlanoDeFundo = PlanoDeFundo()
+        self.estrelas: list[Estrela] = [Estrela() for _ in range(90)]
+        self.frame: int = 0
 
         self.reiniciar()
         self.estado: str = ESTADO_INICIO
 
     def reiniciar(self):
         self.nave: Nave = Nave()
+        self.nave.reaparecer(DURACAO_INVENCIVEL // 2)
         self.meteoros: list[Meteoro] = []
         self.tiros: list[Tiro] = []
         self.itens: list[Item] = []
@@ -55,32 +64,53 @@ class Jogo:
         self.pontuacao: int = 0
         self.vidas: int = VIDAS_INICIAIS
         self.nivel: int = 1
-        self.tempo_aviso_nivel: int = DURACAO_AVISO_NIVEL
+        self.novo_recorde: bool = False
+        self.tempo_aviso_nivel: int = 0
+        self.tempo_aviso_galaxia: int = DURACAO_AVISO_GALAXIA
         self.frames_ate_proximo_spawn: int = INTERVALO_SPAWN_INICIAL
-        self.tempo_escudo: int = 0
-        self.tempo_ate_proximo_item: int = random.randint(500, 800)
+        self.tempo_ate_proximo_item: int = random.randint(600, 900)
 
+        self.fundo.ir_para(0, com_transicao=False)
+        self.tingir_estrelas()
+        self.lancar_onda()
+
+    # ------------------------------------------------------------ dificuldade
     def calcular_nivel(self):
         return 1 + self.pontuacao // PONTOS_POR_NIVEL
 
     def atualizar_nivel(self):
         novo_nivel = self.calcular_nivel()
-        if novo_nivel > self.nivel:
-            self.nivel = novo_nivel
-            self.tempo_aviso_nivel = DURACAO_AVISO_NIVEL
-            tocar(self.sons, "nivel")
+        if novo_nivel <= self.nivel:
+            return
+        self.nivel = novo_nivel
+        tocar(self.sons, "nivel")
 
-    def velocidade_meteoro(self):
-        bonus = (self.nivel - 1) * AUMENTO_VELOCIDADE_POR_NIVEL
-        vel_min = min(VELOCIDADE_METEORO_TETO, VELOCIDADE_METEORO_MIN_INICIAL + bonus)
-        vel_max = min(VELOCIDADE_METEORO_TETO, VELOCIDADE_METEORO_MAX_INICIAL + bonus)
-        return vel_min, vel_max
+        # a cada 10 niveis o jogador chega a uma nova galaxia
+        if self.fundo.ir_para(indice_galaxia(self.nivel)):
+            self.tingir_estrelas()
+            self.tempo_aviso_galaxia = DURACAO_AVISO_GALAXIA
+            self.tempo_aviso_nivel = 0
+        else:
+            self.tempo_aviso_nivel = DURACAO_AVISO_NIVEL
+
+    def velocidade_asteroide(self):
+        velocidade = VELOCIDADE_ASTEROIDE_INICIAL + (self.nivel - 1) * AUMENTO_VELOCIDADE_POR_NIVEL
+        return min(VELOCIDADE_ASTEROIDE_TETO, velocidade)
 
     def intervalo_spawn(self):
         intervalo = INTERVALO_SPAWN_INICIAL - (self.nivel - 1) * REDUCAO_SPAWN_POR_NIVEL
         return max(INTERVALO_SPAWN_MINIMO, intervalo)
 
-    # -----------------------------------------------------------------
+    def lancar_onda(self):
+        quantidade = min(8, ASTEROIDES_INICIAIS + (self.nivel - 1) // 2)
+        for _ in range(quantidade):
+            self.meteoros.append(Meteoro.na_borda(self.velocidade_asteroide()))
+
+    def tingir_estrelas(self):
+        for estrela in self.estrelas:
+            estrela.tingir(self.fundo.galaxia.cor_estrelas)
+
+    # ----------------------------------------------------------------- eventos
     def processar_eventos(self):
         for evento in pygame.event.get():
             if evento.type == pygame.QUIT:
@@ -93,15 +123,16 @@ class Jogo:
                 if evento.key == pygame.K_SPACE:
                     self.acao_principal()
 
+                if evento.key in (pygame.K_LSHIFT, pygame.K_RSHIFT):
+                    self.usar_dash()
+
             if evento.type == pygame.MOUSEBUTTONDOWN:
                 self.acao_principal()
 
     def acao_principal(self):
-        if self.estado == ESTADO_INICIO:
-            self.estado = ESTADO_JOGANDO
-        elif self.estado == ESTADO_JOGANDO:
+        if self.estado == ESTADO_JOGANDO:
             self.disparar()
-        elif self.estado == ESTADO_GAMEOVER:
+        else:
             self.reiniciar()
             self.estado = ESTADO_JOGANDO
 
@@ -110,12 +141,20 @@ class Jogo:
             self.tiros.append(self.nave.atirar())
             tocar(self.sons, "tiro")
 
+    def usar_dash(self):
+        if self.estado == ESTADO_JOGANDO and self.nave.pode_dash():
+            self.nave.dash()
+            tocar(self.sons, "dash")
+
     def sair(self):
         pygame.quit()
         sys.exit()
 
-    # -----------------------------------------------------------------
+    # --------------------------------------------------------------- atualizar
     def atualizar(self):
+        self.frame += 1
+        self.fundo.atualizar()
+
         for estrela in self.estrelas:
             estrela.atualizar()
 
@@ -123,47 +162,28 @@ class Jogo:
             particula.atualizar()
         self.particulas = [p for p in self.particulas if not p.morta()]
 
+        # asteroides continuam flutuando ao fundo nas telas de inicio / game over
+        for meteoro in self.meteoros:
+            meteoro.atualizar()
+
         if self.estado != ESTADO_JOGANDO:
             return
 
-        teclas = pygame.key.get_pressed()
-        if teclas[pygame.K_LEFT] or teclas[pygame.K_a]:
-            self.nave.mover(-1)
-        if teclas[pygame.K_RIGHT] or teclas[pygame.K_d]:
-            self.nave.mover(1)
-        if teclas[pygame.K_SPACE]:
-            self.disparar()
-
+        self.ler_controles()
         self.nave.atualizar()
+        self.particulas.extend(self.nave.emitir_rastro())
 
         if self.tempo_aviso_nivel > 0:
             self.tempo_aviso_nivel -= 1
+        if self.tempo_aviso_galaxia > 0:
+            self.tempo_aviso_galaxia -= 1
 
-        if self.tempo_escudo > 0:
-            self.tempo_escudo -= 1
-            self.nave.escudo = True
-        else:
-            self.nave.escudo = False
-
-        # geracao de meteoros
-        self.frames_ate_proximo_spawn -= 1
-        if self.frames_ate_proximo_spawn <= 0:
-            self.frames_ate_proximo_spawn = self.intervalo_spawn()
-            vel_min, vel_max = self.velocidade_meteoro()
-            self.meteoros.append(Meteoro(vel_min, vel_max))
-
-        # geracao de itens especiais (raros)
-        self.tempo_ate_proximo_item -= 1
-        if self.tempo_ate_proximo_item <= 0:
-            self.tempo_ate_proximo_item = random.randint(600, 900)
-            self.itens.append(Item())
+        self.gerar_asteroides()
+        self.gerar_itens()
 
         for tiro in self.tiros:
             tiro.atualizar()
-        self.tiros = [t for t in self.tiros if not t.fora_da_tela()]
-
-        for meteoro in self.meteoros:
-            meteoro.atualizar()
+        self.tiros = [t for t in self.tiros if not t.expirou()]
 
         for item in self.itens:
             item.atualizar()
@@ -171,99 +191,168 @@ class Jogo:
         self.checar_colisoes_tiro_meteoro()
         self.checar_colisao_nave()
 
-        self.meteoros = [m for m in self.meteoros if not m.fora_da_tela()]
-        self.itens = [i for i in self.itens if not i.fora_da_tela() and not i.coletado]
+        self.itens = [i for i in self.itens if not i.expirou() and not i.coletado]
 
+    def ler_controles(self):
+        teclas = pygame.key.get_pressed()
+        esquerda = teclas[pygame.K_LEFT] or teclas[pygame.K_a]
+        direita = teclas[pygame.K_RIGHT] or teclas[pygame.K_d]
+        self.nave.girar(direita - esquerda)  # 0 = soltou: o giro freia sozinho
+        if teclas[pygame.K_UP] or teclas[pygame.K_w]:
+            self.nave.acelerar()
+        if teclas[pygame.K_DOWN] or teclas[pygame.K_s]:
+            self.nave.frear()
+        if teclas[pygame.K_SPACE]:
+            self.disparar()
+
+    def gerar_asteroides(self):
+        if not self.meteoros:
+            self.lancar_onda()
+            self.frames_ate_proximo_spawn = self.intervalo_spawn()
+            return
+
+        self.frames_ate_proximo_spawn -= 1
+        if self.frames_ate_proximo_spawn <= 0:
+            self.frames_ate_proximo_spawn = self.intervalo_spawn()
+            if len(self.meteoros) < MAX_ASTEROIDES:
+                self.meteoros.append(Meteoro.na_borda(self.velocidade_asteroide()))
+
+    def gerar_itens(self):
+        self.tempo_ate_proximo_item -= 1
+        if self.tempo_ate_proximo_item <= 0:
+            self.tempo_ate_proximo_item = random.randint(900, 1400)
+            if not self.itens:
+                self.itens.append(Item())
+
+    # ---------------------------------------------------------------- colisoes
     def checar_colisoes_tiro_meteoro(self):
         for tiro in self.tiros[:]:
-            for meteoro in self.meteoros[:]:
+            for meteoro in self.meteoros:
                 if tiro.colide_com(meteoro):
-                    if tiro in self.tiros:
-                        self.tiros.remove(tiro)
-                    destruido = meteoro.levar_dano()
-                    if destruido:
-                        self.meteoros.remove(meteoro)
-                        self.pontuacao += 1
-                        self.atualizar_nivel()
-                        self.criar_explosao(meteoro.x, meteoro.y)
-                        tocar(self.sons, "explosao")
+                    self.tiros.remove(tiro)
+                    self.destruir_asteroide(meteoro)
                     break
+
+    def destruir_asteroide(self, meteoro):
+        """Remove o asteroide, soma os pontos e coloca os fragmentos no lugar."""
+        self.meteoros.remove(meteoro)
+        self.meteoros.extend(meteoro.quebrar())
+        self.pontuacao += meteoro.pontos
+        self.criar_explosao(meteoro.x, meteoro.y, COR_ASTEROIDE, 6 + meteoro.tamanho * 5)
+        tocar(self.sons, "explosao")
+        self.atualizar_nivel()
 
     def checar_colisao_nave(self):
         for item in self.itens:
             if not item.coletado and self.nave.colide_com(item):
                 item.coletado = True
-                self.tempo_escudo = FPS * 5
+                self.nave.ativar_escudo(DURACAO_ESCUDO)
                 tocar(self.sons, "item")
 
-        if self.nave.escudo:
-            return
-
-        for meteoro in self.meteoros[:]:
-            if self.nave.colide_com(meteoro):
-                self.meteoros.remove(meteoro)
-                self.criar_explosao(meteoro.x, meteoro.y)
+        for meteoro in self.meteoros:
+            if not self.nave.colide_com(meteoro):
+                continue
+            if self.nave.tempo_escudo > 0:
+                # com escudo ativo, a nave destroi o que tocar
+                self.destruir_asteroide(meteoro)
+            elif self.nave.tempo_invencivel <= 0:
+                self.destruir_asteroide(meteoro)
                 self.perder_vida()
-                return
+            return
 
     def perder_vida(self):
         self.vidas -= 1
+        self.criar_explosao(self.nave.x, self.nave.y, COR_PRIMARIA, 30)
         tocar(self.sons, "colisao")
         if self.vidas <= 0:
             self.fim_de_jogo()
         else:
-            self.tempo_escudo = FPS * 2  # breve invencibilidade apos ser atingido
+            self.nave.reaparecer(DURACAO_INVENCIVEL)
 
-    def criar_explosao(self, x, y):
-        for _ in range(14):
-            self.particulas.append(Particula(x, y))
+    def criar_explosao(self, x, y, cor, quantidade):
+        for _ in range(quantidade):
+            self.particulas.append(Particula(x, y, cor))
 
     def fim_de_jogo(self):
         self.estado = ESTADO_GAMEOVER
+        self.tiros.clear()
+        self.itens.clear()
         if self.pontuacao > self.recorde:
             self.recorde = self.pontuacao
+            self.novo_recorde = True
             salvar_recorde(self.recorde)
 
-    # -----------------------------------------------------------------
+    # ---------------------------------------------------------------- desenhar
     def desenhar(self):
-        self.tela.fill(COR_FUNDO)
+        self.fundo.desenhar(self.tela)
 
         for estrela in self.estrelas:
             estrela.desenhar(self.tela)
-
         for item in self.itens:
             item.desenhar(self.tela)
-
         for meteoro in self.meteoros:
             meteoro.desenhar(self.tela)
-
         for tiro in self.tiros:
             tiro.desenhar(self.tela)
-
         for particula in self.particulas:
             particula.desenhar(self.tela)
 
-        self.nave.desenhar(self.tela)
+        if self.estado == ESTADO_JOGANDO:
+            self.nave.desenhar(self.tela)
 
         if self.estado == ESTADO_INICIO:
-            interface.desenhar_tela_inicio(self.tela, self.fontes, self.recorde)
+            interface.desenhar_tela_inicio(self.tela, self.fontes, self.recorde, self.frame)
         else:
-            interface.desenhar_hud(
-                self.tela,
-                self.fontes,
-                self.pontuacao,
-                self.nivel,
-                self.vidas,
-                self.tempo_aviso_nivel,
-            )
+            self.desenhar_hud()
             if self.estado == ESTADO_GAMEOVER:
                 interface.desenhar_tela_gameover(
-                    self.tela, self.fontes, self.pontuacao, self.recorde
+                    self.tela,
+                    self.fontes,
+                    self.pontuacao,
+                    self.recorde,
+                    self.nivel,
+                    self.fundo.indice + 1,
+                    self.novo_recorde,
+                    self.frame,
                 )
 
         pygame.display.flip()
 
-    # -----------------------------------------------------------------
+    def desenhar_hud(self):
+        galaxia = self.fundo.galaxia
+        setor = self.fundo.indice + 1
+        interface.desenhar_hud(
+            self.tela,
+            self.fontes,
+            self.pontuacao,
+            self.recorde,
+            self.nivel,
+            self.vidas,
+            setor,
+            galaxia.nome,
+            self.nave.carga_dash,
+        )
+        if self.estado != ESTADO_JOGANDO:
+            return
+        interface.desenhar_aviso(
+            self.tela,
+            self.fontes,
+            f"SETOR {setor:02d}",
+            galaxia.nome,
+            self.tempo_aviso_galaxia,
+            DURACAO_AVISO_GALAXIA,
+            galaxia.cor_espiral,
+        )
+        interface.desenhar_aviso(
+            self.tela,
+            self.fontes,
+            "NIVEL",
+            f"{self.nivel:02d}",
+            self.tempo_aviso_nivel,
+            DURACAO_AVISO_NIVEL,
+        )
+
+    # ------------------------------------------------------------------- loop
     def executar(self):
         while True:
             self.processar_eventos()

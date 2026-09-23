@@ -11,6 +11,8 @@ package "spacemax" {
   component "sons" as sons
   component "recorde" as recorde
   component "config" as config
+  component "galaxias" as galaxias
+  component "grafico" as grafico
 
   package "entidades" {
     component "base" as base
@@ -28,6 +30,17 @@ jogo --> interface
 jogo --> sons
 jogo --> recorde
 jogo --> config
+jogo --> galaxias
+galaxias --> config
+interface --> grafico
+interface --> nave
+nave --> grafico
+meteoro --> grafico
+tiro --> grafico
+item --> grafico
+particula --> grafico
+estrela --> grafico
+base --> config
 jogo --> nave
 jogo --> meteoro
 jogo --> item

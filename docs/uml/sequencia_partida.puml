@@ -7,6 +7,7 @@ autonumber
 actor Jogador
 participant "main.py" as Main
 participant Jogo
+participant PlanoDeFundo as Fundo
 participant "sons" as Sons
 participant "recorde" as Recorde
 participant "interface" as UI
@@ -26,60 +27,64 @@ Jogo -> Recorde : carregar_recorde()
 Recorde -> Arquivo : ler
 Arquivo --> Recorde : valor
 Recorde --> Jogo : recorde
+Jogo -> Fundo ** : PlanoDeFundo()
 Jogo -> Jogo : reiniciar()
 Jogo -> Nave ** : Nave()
+Jogo -> Jogo : lancar_onda()
+Jogo -> Meteoro ** : Meteoro.na_borda(velocidade)
 Jogo -> Jogo : estado = INICIO
 Main -> Jogo : executar()
 
 == Tela inicial ==
-Jogo -> UI : desenhar_tela_inicio(tela, fontes, recorde)
+Jogo -> Meteoro : atualizar() (flutuam ao fundo)
+Jogo -> UI : desenhar_tela_inicio(recorde, frame)
 Jogador -> Jogo : ESPACO / clique
-Jogo -> Jogo : acao_principal()\nestado = JOGANDO
+Jogo -> Jogo : reiniciar()\nestado = JOGANDO
 
 == Jogando ==
 loop a cada frame, enquanto vidas > 0
-  Jogador -> Jogo : setas / A-D
-  Jogo -> Nave : mover(direcao)
+  Jogador -> Jogo : setas / WASD
+  Jogo -> Nave : girar(direcao) / acelerar() / frear()
 
   opt ESPACO pressionado
     Jogo -> Nave : pode_atirar()
     Nave --> Jogo : True
     Jogo -> Nave : atirar()
-    Nave -> Tiro ** : Tiro(x, y)
+    Nave -> Tiro ** : Tiro(x, y, angulo, vx, vy)
     Nave --> Jogo : tiro
     Jogo -> Sons : tocar("tiro")
   end
 
-  opt hora de gerar meteoro
-    Jogo -> Jogo : velocidade_meteoro()
-    Jogo -> Meteoro ** : Meteoro(vel_min, vel_max)
+  opt hora de gerar asteroide (ou campo vazio)
+    Jogo -> Meteoro ** : Meteoro.na_borda(velocidade)
   end
 
   opt hora de gerar item
     Jogo -> Item ** : Item()
   end
 
+  Jogo -> Nave : atualizar() (inercia + atravessar bordas)
   Jogo -> Tiro : atualizar()
   Jogo -> Meteoro : atualizar()
-  Jogo -> Item : atualizar()
 
   group checar_colisoes_tiro_meteoro()
     Jogo -> Tiro : colide_com(meteoro)
-    Tiro -> Meteoro : rect()
-    Meteoro --> Tiro : Rect
     Tiro --> Jogo : True
-    Jogo -> Meteoro : levar_dano()
-    alt meteoro destruido
-      Meteoro --> Jogo : True
-      Jogo -> Jogo : pontuacao += 1
-      Jogo -> Jogo : atualizar_nivel()
-      opt subiu de nivel
-        Jogo -> Sons : tocar("nivel")
-      end
-      Jogo -> Jogo : criar_explosao(x, y)
-      Jogo -> Sons : tocar("explosao")
-    else meteoro grande ainda resiste
-      Meteoro --> Jogo : False
+    Jogo -> Jogo : destruir_asteroide(meteoro)
+    Jogo -> Meteoro : quebrar()
+    alt grande ou medio
+      Meteoro -> Meteoro : cria 2 fragmentos menores
+      Meteoro --> Jogo : [fragmento, fragmento]
+    else pequeno
+      Meteoro --> Jogo : []
+    end
+    Jogo -> Jogo : pontuacao += meteoro.pontos
+    Jogo -> Sons : tocar("explosao")
+    Jogo -> Jogo : atualizar_nivel()
+    opt nivel passou de 10 em 10
+      Jogo -> Fundo : ir_para(proxima galaxia)
+      Fundo --> Jogo : True
+      Jogo -> Jogo : tingir_estrelas()\naviso "SETOR N"
     end
   end
 
@@ -87,23 +92,29 @@ loop a cada frame, enquanto vidas > 0
     opt nave coleta item
       Jogo -> Nave : colide_com(item)
       Nave --> Jogo : True
-      Jogo -> Jogo : tempo_escudo = 5 s
+      Jogo -> Nave : ativar_escudo(6 s)
       Jogo -> Sons : tocar("item")
     end
-    opt nave sem escudo atingida por meteoro
+    opt nave toca asteroide
       Jogo -> Nave : colide_com(meteoro)
       Nave --> Jogo : True
-      Jogo -> Jogo : perder_vida()
-      Jogo -> Sons : tocar("colisao")
-      alt vidas > 0
-        Jogo -> Jogo : tempo_escudo = 2 s
-      else vidas == 0
-        Jogo -> Jogo : fim_de_jogo()
+      alt com escudo
+        Jogo -> Jogo : destruir_asteroide(meteoro)
+      else desprotegida
+        Jogo -> Jogo : destruir_asteroide(meteoro)
+        Jogo -> Jogo : perder_vida()
+        Jogo -> Sons : tocar("colisao")
+        alt vidas > 0
+          Jogo -> Nave : reaparecer(invencivel 2 s)
+        else vidas == 0
+          Jogo -> Jogo : fim_de_jogo()
+        end
       end
     end
   end
 
-  Jogo -> UI : desenhar_hud(pontuacao, nivel, vidas, ...)
+  Jogo -> Fundo : desenhar(tela)
+  Jogo -> UI : desenhar_hud(pontos, recorde, nivel, vidas, setor)
 end
 
 == Game Over ==
@@ -112,7 +123,7 @@ opt pontuacao > recorde
   Jogo -> Recorde : salvar_recorde(pontuacao)
   Recorde -> Arquivo : gravar
 end
-Jogo -> UI : desenhar_tela_gameover(pontuacao, recorde)
+Jogo -> UI : desenhar_tela_gameover(pontos, recorde, nivel, setor)
 
 alt jogar novamente
   Jogador -> Jogo : ESPACO / clique
