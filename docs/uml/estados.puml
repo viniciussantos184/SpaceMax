@@ -1,0 +1,26 @@
+@startuml estados
+title SpaceMax - Estados do jogo
+
+[*] --> Inicio
+
+state "Inicio" as Inicio : tela inicial com titulo,\ncontroles e recorde
+state "Jogando" as Jogando {
+  state "Normal" as Normal
+  state "Com escudo" as Escudo : imune a colisoes
+
+  [*] --> Normal
+  Normal --> Escudo : coleta item (5 s)
+  Normal --> Escudo : perde vida e vidas > 0 (2 s)
+  Escudo --> Normal : tempo_escudo chega a 0
+}
+state "Game Over" as GameOver : mostra pontuacao e recorde\n(salva recorde se superado)
+
+Inicio --> Jogando : ESPACO / clique
+Jogando --> GameOver : vidas == 0
+GameOver --> Jogando : ESPACO / clique\n[reiniciar()]
+
+Inicio --> [*] : ESC / fechar janela
+Jogando --> [*] : ESC / fechar janela
+GameOver --> [*] : ESC / fechar janela
+
+@enduml

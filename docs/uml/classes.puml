@@ -1,0 +1,192 @@
+@startuml classes
+title SpaceMax - Diagrama de classes
+
+skinparam classAttributeIconSize 0
+skinparam packageStyle folder
+hide empty members
+
+package "spacemax" {
+
+  class Jogo {
+    - tela: Surface
+    - relogio: Clock
+    - fontes: Fontes
+    - sons: dict[str, Sound] | None
+    - recorde: int
+    - estado: str
+    - estrelas: list[Estrela]
+    - nave: Nave
+    - meteoros: list[Meteoro]
+    - tiros: list[Tiro]
+    - itens: list[Item]
+    - particulas: list[Particula]
+    - pontuacao: int
+    - vidas: int
+    - nivel: int
+    - tempo_aviso_nivel: int
+    - frames_ate_proximo_spawn: int
+    - tempo_escudo: int
+    - tempo_ate_proximo_item: int
+    --
+    + executar()
+    + reiniciar()
+    + processar_eventos()
+    + acao_principal()
+    + disparar()
+    + atualizar()
+    + desenhar()
+    + sair()
+    - calcular_nivel(): int
+    - atualizar_nivel()
+    - velocidade_meteoro(): tuple[float, float]
+    - intervalo_spawn(): int
+    - checar_colisoes_tiro_meteoro()
+    - checar_colisao_nave()
+    - perder_vida()
+    - criar_explosao(x, y)
+    - fim_de_jogo()
+  }
+
+  package "interface" {
+    class Fontes {
+      + titulo: Font
+      + grande: Font
+      + media: Font
+      + pequena: Font
+    }
+    note bottom of Fontes
+      Funcoes do modulo:
+      desenhar_texto(), escurecer_tela(),
+      desenhar_hud(), desenhar_tela_inicio(),
+      desenhar_tela_gameover()
+    end note
+  }
+
+  package "entidades" {
+    abstract class Entidade {
+      + x: float
+      + y: float
+      --
+      + {abstract} atualizar()
+      + {abstract} desenhar(tela)
+    }
+
+    abstract class EntidadeColidivel {
+      + {abstract} rect(): Rect
+      + colide_com(outra: EntidadeColidivel): bool
+    }
+
+    class Nave {
+      {static} LARGURA = 40
+      {static} ALTURA = 28
+      + escudo: bool
+      + cooldown_atual: int
+      --
+      + mover(direcao)
+      + atualizar()
+      + pode_atirar(): bool
+      + atirar(): Tiro
+      + rect(): Rect
+      + desenhar(tela)
+    }
+
+    class Tiro {
+      {static} LARGURA = 4
+      {static} ALTURA = 14
+      --
+      + atualizar()
+      + fora_da_tela(): bool
+      + rect(): Rect
+      + desenhar(tela)
+    }
+
+    class Meteoro {
+      + raio: int
+      + velocidade_x: float
+      + velocidade_y: float
+      + angulo: float
+      + velocidade_angular: float
+      + vida: int
+      + forma: list[tuple[float, float]]
+      --
+      + atualizar()
+      + fora_da_tela(): bool
+      + levar_dano(): bool
+      + rect(): Rect
+      + desenhar(tela)
+    }
+
+    class Item {
+      {static} RAIO = 12
+      + velocidade_y: float
+      + coletado: bool
+      --
+      + atualizar()
+      + fora_da_tela(): bool
+      + rect(): Rect
+      + desenhar(tela)
+    }
+
+    class Particula {
+      + vx: float
+      + vy: float
+      + vida: int
+      + vida_max: int
+      + raio: int
+      --
+      + atualizar()
+      + morta(): bool
+      + desenhar(tela)
+    }
+
+    class Estrela {
+      + tamanho: int
+      + velocidade: float
+      --
+      + atualizar()
+      + desenhar(tela)
+    }
+  }
+
+  class "sons" as mod_sons <<(M,#FFD37F) modulo>> {
+    + gerar_som(frequencia, duracao, volume, tipo): Sound
+    + criar_sons(): dict[str, Sound] | None
+    + tocar(sons, nome)
+  }
+
+  class "recorde" as mod_recorde <<(M,#FFD37F) modulo>> {
+    + carregar_recorde(): int
+    + salvar_recorde(valor)
+  }
+
+  class "config" as mod_config <<(M,#FFD37F) modulo>> {
+    LARGURA, ALTURA, FPS
+    cores, velocidades, dificuldade
+    ESTADO_INICIO / JOGANDO / GAMEOVER
+  }
+}
+
+' ---- Hierarquia (heranca) ----
+Entidade <|-- EntidadeColidivel
+Entidade <|-- Particula
+Entidade <|-- Estrela
+EntidadeColidivel <|-- Nave
+EntidadeColidivel <|-- Tiro
+EntidadeColidivel <|-- Meteoro
+EntidadeColidivel <|-- Item
+
+' ---- Composicao ----
+Jogo *-- "1" Fontes
+Jogo *-- "1" Nave
+Jogo *-- "0..*" Tiro
+Jogo *-- "0..*" Meteoro
+Jogo *-- "0..*" Item
+Jogo *-- "0..*" Particula
+Jogo *-- "70" Estrela
+
+Nave ..> Tiro : cria >
+Jogo ..> mod_sons : usa >
+Jogo ..> mod_recorde : usa >
+Jogo ..> mod_config : usa >
+
+@enduml

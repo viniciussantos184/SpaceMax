@@ -1,0 +1,4 @@
+-r requirements.txt
+
+# Gera diagramas PlantUML a partir do codigo Python (ferramentas/gerar_uml.py)
+py2puml>=0.11.0

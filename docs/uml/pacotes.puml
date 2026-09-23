@@ -1,0 +1,52 @@
+@startuml pacotes
+title SpaceMax - Dependencias entre modulos
+
+skinparam packageStyle folder
+
+component "main.py" as main
+
+package "spacemax" {
+  component "jogo" as jogo
+  component "interface" as interface
+  component "sons" as sons
+  component "recorde" as recorde
+  component "config" as config
+
+  package "entidades" {
+    component "base" as base
+    component "nave" as nave
+    component "tiro" as tiro
+    component "meteoro" as meteoro
+    component "item" as item
+    component "particula" as particula
+    component "estrela" as estrela
+  }
+}
+
+main --> jogo
+jogo --> interface
+jogo --> sons
+jogo --> recorde
+jogo --> config
+jogo --> nave
+jogo --> meteoro
+jogo --> item
+jogo --> particula
+jogo --> estrela
+jogo --> tiro
+nave --> tiro
+nave --> base
+tiro --> base
+meteoro --> base
+item --> base
+particula --> base
+estrela --> base
+interface --> config
+recorde --> config
+nave --> config
+tiro --> config
+meteoro --> config
+item --> config
+estrela --> config
+
+@enduml

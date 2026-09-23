@@ -38,6 +38,70 @@ deixando o jogo progressivamente mais dificil.
 - Efeito visual de explosao (particulas) ao destruir meteoros
 - Item especial (escudo temporario)
 
+## Estrutura do projeto
+
+```
+SpaceMax/
+├── main.py                 # ponto de entrada (apenas inicia o jogo)
+├── requirements.txt
+├── requirements-dev.txt    # dependencias de desenvolvimento (py2puml)
+├── docs/uml/               # diagramas PlantUML (.puml) e imagens geradas
+├── ferramentas/
+│   └── gerar_uml.py        # gera os diagramas com py2puml + PlantUML
+└── spacemax/
+    ├── config.py           # constantes: tela, cores, velocidades, dificuldade
+    ├── jogo.py             # classe Jogo: loop principal, regras e colisoes
+    ├── interface.py        # textos, HUD, tela inicial e de Game Over
+    ├── sons.py             # efeitos sonoros gerados por codigo
+    ├── recorde.py          # leitura/gravacao do recorde
+    └── entidades/
+        ├── nave.py         # nave do jogador
+        ├── tiro.py         # tiros
+        ├── meteoro.py      # meteoros
+        ├── item.py         # item de escudo
+        ├── particula.py    # particulas de explosao
+        └── estrela.py      # estrelas do cenario
+```
+
+## Diagramas UML (py2puml + PlantUML)
+
+Os diagramas ficam em `docs/uml/`:
+
+| Arquivo | Conteudo |
+| --- | --- |
+| `classes.puml` | diagrama de classes completo (atributos, metodos e relacoes) |
+| `estados.puml` | maquina de estados do jogo (Inicio, Jogando, Game Over) |
+| `sequencia_frame.puml` | sequencia de chamadas em um frame do jogo |
+| `pacotes.puml` | dependencias entre os modulos |
+| `gerado/classes_py2puml.puml` | diagrama gerado automaticamente a partir do codigo pelo **py2puml** |
+
+As imagens PNG ficam em `docs/uml/imagens/`. Para gerar tudo de novo depois
+de mudar o codigo (precisa de Java instalado; o `plantuml.jar` e baixado
+automaticamente na primeira vez):
+
+```bash
+pip install -r requirements-dev.txt
+python ferramentas/gerar_uml.py
+```
+
+Antes de gerar os diagramas, o script valida a hierarquia de classes
+(`ferramentas/validar_hierarquia.py`, que tambem pode ser executado sozinho).
+Se alguma entidade nao herdar de `Entidade`, ou deixar um metodo abstrato sem
+implementar, nenhum diagrama e gerado.
+
+```
+Entidade (abstrata)            x, y, atualizar(), desenhar()
+    +-- EntidadeColidivel (abstrata)   rect(), colide_com()
+        +-- Item
+        +-- Meteoro
+        +-- Nave
+        +-- Tiro
+    +-- Estrela
+    +-- Particula
+```
+
+![Diagrama de classes](docs/uml/imagens/classes.png)
+
 ## Instalacao
 
 Requer Python 3.8+.

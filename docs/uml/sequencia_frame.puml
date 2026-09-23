@@ -1,0 +1,58 @@
+@startuml sequencia_frame
+title SpaceMax - Sequencia de um frame (estado Jogando)
+
+actor Jogador
+participant "main.py" as Main
+participant Jogo
+participant Nave
+participant Meteoro
+participant Tiro
+participant "sons" as Sons
+participant "interface" as UI
+
+Main -> Jogo : Jogo()
+Main -> Jogo : executar()
+
+loop a cada frame (60 FPS)
+  Jogador -> Jogo : teclado / mouse
+  Jogo -> Jogo : processar_eventos()
+
+  group atualizar()
+    Jogo -> Nave : mover(direcao)
+    opt ESPACO e nave.pode_atirar()
+      Jogo -> Nave : atirar()
+      Nave --> Jogo : Tiro
+      Jogo -> Sons : tocar("tiro")
+    end
+    opt frames_ate_proximo_spawn <= 0
+      Jogo -> Meteoro ** : Meteoro(vel_min, vel_max)
+    end
+    Jogo -> Tiro : atualizar()
+    Jogo -> Meteoro : atualizar()
+
+    Jogo -> Jogo : checar_colisoes_tiro_meteoro()
+    opt tiro acertou meteoro
+      Jogo -> Meteoro : levar_dano()
+      alt meteoro destruido
+        Jogo -> Jogo : pontuacao += 1\natualizar_nivel()
+        Jogo -> Jogo : criar_explosao(x, y)
+        Jogo -> Sons : tocar("explosao")
+      end
+    end
+
+    Jogo -> Jogo : checar_colisao_nave()
+    opt meteoro atingiu nave sem escudo
+      Jogo -> Jogo : perder_vida()
+      Jogo -> Sons : tocar("colisao")
+    end
+  end
+
+  group desenhar()
+    Jogo -> Nave : desenhar(tela)
+    Jogo -> Meteoro : desenhar(tela)
+    Jogo -> Tiro : desenhar(tela)
+    Jogo -> UI : desenhar_hud(...)
+  end
+end
+
+@enduml
