@@ -22,6 +22,9 @@ package "spacemax" {
     - tiros: list[Tiro]
     - itens: list[Item]
     - particulas: list[Particula]
+    - ondas: list[Onda]
+    - tremor: int
+    - cena: Surface
     - pontuacao: int
     - vidas: int
     - nivel: int
@@ -51,6 +54,10 @@ package "spacemax" {
     - checar_colisoes_tiro_meteoro()
     - checar_colisao_nave()
     - destruir_asteroide(meteoro)
+    - efeito_pegar_escudo()
+    - efeito_impacto_escudo(meteoro)
+    - deslocamento_tremor(): (float, float)
+    - usar_dash()
     - perder_vida()
     - criar_explosao(x, y, cor, quantidade)
     - fim_de_jogo()
@@ -127,24 +134,24 @@ package "spacemax" {
       + potencia: float
       + propulsor_ligado: bool
       + cooldown_atual: int
-      + cooldown_dash: int
       + tempo_dash: int
       + tempo_escudo: int
       + tempo_invencivel: int
+      + clarao: int
       + frame: int
       --
       + girar(direcao)
       + acelerar()
       + frear()
       + direcao(): (float, float)
-      + pode_dash(): bool
       + dash()
-      + carga_dash: float <<property>>
+      + limitar_velocidade()
       + emitir_rastro(): list[Particula]
       + pode_atirar(): bool
       + atirar(): Tiro
       + protegida: bool <<property>>
       + ativar_escudo(frames)
+      + impacto_no_escudo()
       + reaparecer(frames_invencivel)
       + atualizar()
       + desenhar(tela)
@@ -201,6 +208,19 @@ package "spacemax" {
       + desenhar(tela)
     }
 
+    class Onda {
+      + cor: RGB
+      + raio_inicial: float
+      + raio_final: float
+      + duracao: int
+      + tempo: int
+      --
+      + progresso: float <<property>>
+      + atualizar()
+      + terminou(): bool
+      + desenhar(tela)
+    }
+
     class Estrela {
       + profundidade: float
       + velocidade: float
@@ -241,6 +261,7 @@ package "spacemax" {
 Entidade <|-- EntidadeColidivel
 Entidade <|-- Particula
 Entidade <|-- Estrela
+Entidade <|-- Onda
 EntidadeColidivel <|-- Nave
 EntidadeColidivel <|-- Tiro
 EntidadeColidivel <|-- Meteoro
@@ -254,6 +275,7 @@ Jogo *-- "0..*" Tiro
 Jogo *-- "0..*" Meteoro
 Jogo *-- "0..*" Item
 Jogo *-- "0..*" Particula
+Jogo *-- "0..*" Onda
 Jogo *-- "90" Estrela
 PlanoDeFundo ..> Galaxia : usa >
 

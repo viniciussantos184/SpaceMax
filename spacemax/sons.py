@@ -41,6 +41,7 @@ def criar_sons():
             "item": gerar_som(1200, 0.12, 0.2, "senoide"),
             "nivel": gerar_som(660, 0.20, 0.22, "senoide"),
             "dash": gerar_som(90, 0.16, 0.22, "ruido"),
+            "impacto_escudo": gerar_som(260, 0.14, 0.22, "quadrada"),
         }
     except pygame.error:
         return None

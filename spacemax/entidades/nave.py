@@ -12,7 +12,6 @@ from ..config import (
     ALTURA,
     AMORTECIMENTO_ROTACAO,
     ATRITO_NAVE,
-    COOLDOWN_DASH,
     COOLDOWN_TIRO,
     COR_CHAMA,
     COR_ITEM,
@@ -51,10 +50,10 @@ class Nave(EntidadeColidivel):
         self.potencia: float = 0.0  # 0..1: rampa do motor principal
         self.propulsor_ligado: bool = False
         self.cooldown_atual: int = 0
-        self.cooldown_dash: int = 0
         self.tempo_dash: int = 0
         self.tempo_escudo: int = 0  # escudo do item
         self.tempo_invencivel: int = 0  # piscando apos ser atingida
+        self.clarao: int = 0  # brilho ao pegar escudo / bater com escudo
         self.frame: int = 0
 
     # ----------------------------------------------------------------- controle
@@ -80,21 +79,26 @@ class Nave(EntidadeColidivel):
         rad = math.radians(self.angulo)
         return math.sin(rad), -math.cos(rad)
 
-    def pode_dash(self):
-        return self.cooldown_dash <= 0
-
     def dash(self):
-        """Impulso instantaneo na direcao do nariz (recarrega em COOLDOWN_DASH)."""
+        """Impulso instantaneo na direcao do nariz (pode usar sempre)."""
         dx, dy = self.direcao()
         self.vx += dx * IMPULSO_DASH
         self.vy += dy * IMPULSO_DASH
-        self.cooldown_dash = COOLDOWN_DASH
+        self.limitar_velocidade()  # impulsos seguidos nao acumulam alem do teto
         self.tempo_dash = DURACAO_DASH
 
-    @property
-    def carga_dash(self) -> float:
-        """0 = acabou de usar, 1 = pronto."""
-        return 1 - self.cooldown_dash / COOLDOWN_DASH
+    def limitar_velocidade(self):
+        velocidade = math.hypot(self.vx, self.vy)
+        if velocidade > VELOCIDADE_MAX_DASH:
+            # teto rigido: nem impulsos em sequencia passam daqui
+            fator = VELOCIDADE_MAX_DASH / velocidade
+        elif self.tempo_dash <= 0 and velocidade > VELOCIDADE_MAX_NAVE:
+            # apos o impulso, volta ao limite normal suavemente
+            fator = max(VELOCIDADE_MAX_NAVE / velocidade, 0.97)
+        else:
+            return
+        self.vx *= fator
+        self.vy *= fator
 
     def pode_atirar(self):
         return self.cooldown_atual <= 0
@@ -111,6 +115,10 @@ class Nave(EntidadeColidivel):
 
     def ativar_escudo(self, frames):
         self.tempo_escudo = frames
+        self.clarao = 18
+
+    def impacto_no_escudo(self):
+        self.clarao = max(self.clarao, 10)
 
     def reaparecer(self, frames_invencivel):
         self.x, self.y = LARGURA / 2, ALTURA / 2
@@ -138,17 +146,11 @@ class Nave(EntidadeColidivel):
 
         self.vx *= ATRITO_NAVE
         self.vy *= ATRITO_NAVE
-        limite = VELOCIDADE_MAX_DASH if self.tempo_dash > 0 else VELOCIDADE_MAX_NAVE
-        velocidade = math.hypot(self.vx, self.vy)
-        if velocidade > limite:
-            # apos o impulso, volta ao limite normal suavemente
-            fator = max(limite / velocidade, 0.97)
-            self.vx *= fator
-            self.vy *= fator
+        self.limitar_velocidade()
         self.mover()
 
-        for atributo in ("cooldown_atual", "cooldown_dash", "tempo_dash",
-                         "tempo_escudo", "tempo_invencivel"):
+        for atributo in ("cooldown_atual", "tempo_dash",
+                         "tempo_escudo", "tempo_invencivel", "clarao"):
             valor = getattr(self, atributo)
             if valor > 0:
                 setattr(self, atributo, valor - 1)
@@ -189,7 +191,12 @@ class Nave(EntidadeColidivel):
                 )
                 pygame.draw.aalines(tela, grafico.misturar(COR_PRIMARIA, 0.12 * (4 - passo)), True, fantasma)
 
-        grafico.contorno(tela, COR_PRIMARIA, grafico.rotacionar(CASCO, self.angulo, self.x, self.y))
+        # clarao: o casco fica quase branco por alguns frames
+        cor_casco = COR_PRIMARIA
+        if self.clarao > 0:
+            brilho = min(1.0, self.clarao / 10)
+            cor_casco = tuple(int(c + (255 - c) * brilho) for c in COR_PRIMARIA)
+        grafico.contorno(tela, cor_casco, grafico.rotacionar(CASCO, self.angulo, self.x, self.y))
         for inicio, fim in DETALHES:
             a, b = grafico.rotacionar([inicio, fim], self.angulo, self.x, self.y)
             pygame.draw.aaline(tela, grafico.misturar(COR_PRIMARIA, 0.55), a, b)
@@ -217,14 +224,20 @@ class Nave(EntidadeColidivel):
 
     def desenhar_escudo(self, tela):
         # pisca nos ultimos 1,5 s para avisar que vai acabar
-        if self.tempo_escudo < 90 and (self.frame // 6) % 2 == 0:
+        if self.tempo_escudo < 90 and self.clarao <= 0 and (self.frame // 6) % 2 == 0:
             return
-        raio = 26
+        # no clarao o escudo "incha", fica mais grosso e fecha o circulo
+        pulso = min(1.0, self.clarao / 10)
+        raio = int(26 + 6 * pulso)
         rect = pygame.Rect(0, 0, raio * 2, raio * 2)
         rect.center = (int(self.x), int(self.y))
-        giro = math.radians(self.frame * 3)
+        giro = math.radians(self.frame * (3 + 9 * pulso))
+        abertura = math.radians(70 + 50 * pulso)
+        largura = 2 + int(2 * pulso)
         # tres arcos girando: visual de "campo de forca" tecnico
         for i in range(3):
             inicio = giro + i * (2 * math.pi / 3)
-            pygame.draw.arc(tela, COR_ITEM, rect, inicio, inicio + math.radians(70), 2)
-        grafico.circulo(tela, grafico.misturar(COR_ITEM, 0.25), (self.x, self.y), raio + 4)
+            pygame.draw.arc(tela, COR_ITEM, rect, inicio, inicio + abertura, largura)
+        grafico.circulo(
+            tela, grafico.misturar(COR_ITEM, 0.25 + 0.6 * pulso), (self.x, self.y), raio + 4
+        )

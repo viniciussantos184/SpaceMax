@@ -34,11 +34,18 @@ class spacemax.entidades.nave.Nave {
   potencia: float
   propulsor_ligado: bool
   cooldown_atual: int
-  cooldown_dash: int
   tempo_dash: int
   tempo_escudo: int
   tempo_invencivel: int
+  clarao: int
   frame: int
+}
+class spacemax.entidades.onda.Onda {
+  cor: tuple[int, int, int]
+  raio_inicial: float
+  raio_final: float
+  duracao: int
+  tempo: int
 }
 class spacemax.entidades.particula.Particula {
   vx: float
@@ -79,6 +86,7 @@ class spacemax.jogo.Jogo {
   fundo: PlanoDeFundo
   estrelas: list[Estrela]
   frame: int
+  cena: Surface
   estado: str
 }
 spacemax.entidades.base.Entidade <|-- spacemax.entidades.base.EntidadeColidivel
@@ -86,6 +94,7 @@ spacemax.entidades.base.Entidade <|-- spacemax.entidades.estrela.Estrela
 spacemax.entidades.base.EntidadeColidivel <|-- spacemax.entidades.item.Item
 spacemax.entidades.base.EntidadeColidivel <|-- spacemax.entidades.meteoro.Meteoro
 spacemax.entidades.base.EntidadeColidivel <|-- spacemax.entidades.nave.Nave
+spacemax.entidades.base.Entidade <|-- spacemax.entidades.onda.Onda
 spacemax.entidades.base.Entidade <|-- spacemax.entidades.particula.Particula
 spacemax.entidades.base.EntidadeColidivel <|-- spacemax.entidades.tiro.Tiro
 spacemax.jogo.Jogo *-- spacemax.interface.Fontes

@@ -27,6 +27,7 @@ ARGUMENTOS_TESTE = {
     "Tiro": (100, 100, 0),
     "Particula": (100, 100),
     "Meteoro": (100, 100),
+    "Onda": (100, 100, (255, 255, 255)),
 }
 
 

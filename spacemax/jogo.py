@@ -11,6 +11,7 @@ from .config import (
     ASTEROIDES_INICIAIS,
     AUMENTO_VELOCIDADE_POR_NIVEL,
     COR_ASTEROIDE,
+    COR_ITEM,
     COR_PRIMARIA,
     DURACAO_AVISO_NIVEL,
     DURACAO_ESCUDO,
@@ -20,16 +21,18 @@ from .config import (
     ESTADO_JOGANDO,
     FPS,
     INTERVALO_SPAWN_INICIAL,
+    INTERVALO_ESCUDO,
     INTERVALO_SPAWN_MINIMO,
     LARGURA,
     MAX_ASTEROIDES,
+    MAX_ESCUDOS_NA_TELA,
     PONTOS_POR_NIVEL,
     REDUCAO_SPAWN_POR_NIVEL,
     VELOCIDADE_ASTEROIDE_INICIAL,
     VELOCIDADE_ASTEROIDE_TETO,
     VIDAS_INICIAIS,
 )
-from .entidades import Estrela, Item, Meteoro, Nave, Particula, Tiro
+from .entidades import Estrela, Item, Meteoro, Nave, Onda, Particula, Tiro
 from .galaxias import PlanoDeFundo, indice_galaxia
 from .recorde import carregar_recorde, salvar_recorde
 from .sons import criar_sons, tocar
@@ -50,6 +53,9 @@ class Jogo:
         self.fundo: PlanoDeFundo = PlanoDeFundo()
         self.estrelas: list[Estrela] = [Estrela() for _ in range(90)]
         self.frame: int = 0
+        # a cena do jogo e desenhada aqui e copiada na tela com o deslocamento
+        # do tremor; o HUD e desenhado depois, direto na tela, e nao treme
+        self.cena: pygame.Surface = pygame.Surface((LARGURA, ALTURA))
 
         self.reiniciar()
         self.estado: str = ESTADO_INICIO
@@ -61,6 +67,8 @@ class Jogo:
         self.tiros: list[Tiro] = []
         self.itens: list[Item] = []
         self.particulas: list[Particula] = []
+        self.ondas: list[Onda] = []
+        self.tremor: int = 0
         self.pontuacao: int = 0
         self.vidas: int = VIDAS_INICIAIS
         self.nivel: int = 1
@@ -68,7 +76,7 @@ class Jogo:
         self.tempo_aviso_nivel: int = 0
         self.tempo_aviso_galaxia: int = DURACAO_AVISO_GALAXIA
         self.frames_ate_proximo_spawn: int = INTERVALO_SPAWN_INICIAL
-        self.tempo_ate_proximo_item: int = random.randint(600, 900)
+        self.tempo_ate_proximo_item: int = random.randint(*INTERVALO_ESCUDO) // 2
 
         self.fundo.ir_para(0, com_transicao=False)
         self.tingir_estrelas()
@@ -142,7 +150,7 @@ class Jogo:
             tocar(self.sons, "tiro")
 
     def usar_dash(self):
-        if self.estado == ESTADO_JOGANDO and self.nave.pode_dash():
+        if self.estado == ESTADO_JOGANDO:
             self.nave.dash()
             tocar(self.sons, "dash")
 
@@ -161,6 +169,12 @@ class Jogo:
         for particula in self.particulas:
             particula.atualizar()
         self.particulas = [p for p in self.particulas if not p.morta()]
+
+        for onda in self.ondas:
+            onda.atualizar()
+        self.ondas = [o for o in self.ondas if not o.terminou()]
+        if self.tremor > 0:
+            self.tremor -= 1
 
         # asteroides continuam flutuando ao fundo nas telas de inicio / game over
         for meteoro in self.meteoros:
@@ -220,8 +234,8 @@ class Jogo:
     def gerar_itens(self):
         self.tempo_ate_proximo_item -= 1
         if self.tempo_ate_proximo_item <= 0:
-            self.tempo_ate_proximo_item = random.randint(900, 1400)
-            if not self.itens:
+            self.tempo_ate_proximo_item = random.randint(*INTERVALO_ESCUDO)
+            if len(self.itens) < MAX_ESCUDOS_NA_TELA:
                 self.itens.append(Item())
 
     # ---------------------------------------------------------------- colisoes
@@ -247,6 +261,7 @@ class Jogo:
             if not item.coletado and self.nave.colide_com(item):
                 item.coletado = True
                 self.nave.ativar_escudo(DURACAO_ESCUDO)
+                self.efeito_pegar_escudo()
                 tocar(self.sons, "item")
 
         for meteoro in self.meteoros:
@@ -254,15 +269,38 @@ class Jogo:
                 continue
             if self.nave.tempo_escudo > 0:
                 # com escudo ativo, a nave destroi o que tocar
+                self.efeito_impacto_escudo(meteoro)
                 self.destruir_asteroide(meteoro)
             elif self.nave.tempo_invencivel <= 0:
                 self.destruir_asteroide(meteoro)
                 self.perder_vida()
             return
 
+    def efeito_pegar_escudo(self):
+        x, y = self.nave.x, self.nave.y
+        self.ondas.append(Onda(x, y, COR_ITEM, raio_final=70, duracao=20))
+        self.ondas.append(Onda(x, y, COR_ITEM, raio_final=120, duracao=34, raio_inicial=20))
+        self.criar_explosao(x, y, COR_ITEM, 26)
+        self.tremor = max(self.tremor, 6)
+
+    def efeito_impacto_escudo(self, meteoro):
+        # o ponto de impacto fica na borda do escudo, entre a nave e o asteroide
+        dx, dy = meteoro.x - self.nave.x, meteoro.y - self.nave.y
+        distancia = max(1.0, (dx * dx + dy * dy) ** 0.5)
+        x = self.nave.x + dx / distancia * 26
+        y = self.nave.y + dy / distancia * 26
+        self.ondas.append(Onda(x, y, COR_ITEM, raio_final=meteoro.raio * 2.2, duracao=18))
+        self.ondas.append(Onda(meteoro.x, meteoro.y, (255, 255, 255), raio_final=meteoro.raio * 1.4, duracao=12))
+        self.criar_explosao(x, y, COR_ITEM, 12 + meteoro.tamanho * 4)
+        self.nave.impacto_no_escudo()
+        self.tremor = max(self.tremor, 4 + meteoro.tamanho * 3)
+        tocar(self.sons, "impacto_escudo")
+
     def perder_vida(self):
         self.vidas -= 1
         self.criar_explosao(self.nave.x, self.nave.y, COR_PRIMARIA, 30)
+        self.ondas.append(Onda(self.nave.x, self.nave.y, COR_PRIMARIA, raio_final=90, duracao=26))
+        self.tremor = max(self.tremor, 14)
         tocar(self.sons, "colisao")
         if self.vidas <= 0:
             self.fim_de_jogo()
@@ -284,21 +322,27 @@ class Jogo:
 
     # ---------------------------------------------------------------- desenhar
     def desenhar(self):
-        self.fundo.desenhar(self.tela)
+        cena = self.cena
+        self.fundo.desenhar(cena)
 
         for estrela in self.estrelas:
-            estrela.desenhar(self.tela)
+            estrela.desenhar(cena)
         for item in self.itens:
-            item.desenhar(self.tela)
+            item.desenhar(cena)
         for meteoro in self.meteoros:
-            meteoro.desenhar(self.tela)
+            meteoro.desenhar(cena)
         for tiro in self.tiros:
-            tiro.desenhar(self.tela)
+            tiro.desenhar(cena)
         for particula in self.particulas:
-            particula.desenhar(self.tela)
+            particula.desenhar(cena)
+        for onda in self.ondas:
+            onda.desenhar(cena)
 
         if self.estado == ESTADO_JOGANDO:
-            self.nave.desenhar(self.tela)
+            self.nave.desenhar(cena)
+
+        self.tela.fill(self.fundo.galaxia.cor_fundo)
+        self.tela.blit(cena, self.deslocamento_tremor())
 
         if self.estado == ESTADO_INICIO:
             interface.desenhar_tela_inicio(self.tela, self.fontes, self.recorde, self.frame)
@@ -318,6 +362,12 @@ class Jogo:
 
         pygame.display.flip()
 
+    def deslocamento_tremor(self):
+        if self.tremor <= 0:
+            return (0, 0)
+        forca = min(6, self.tremor * 0.6)
+        return (random.uniform(-forca, forca), random.uniform(-forca, forca))
+
     def desenhar_hud(self):
         galaxia = self.fundo.galaxia
         setor = self.fundo.indice + 1
@@ -330,7 +380,6 @@ class Jogo:
             self.vidas,
             setor,
             galaxia.nome,
-            self.nave.carga_dash,
         )
         if self.estado != ESTADO_JOGANDO:
             return

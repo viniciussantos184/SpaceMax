@@ -11,7 +11,7 @@ viaje por galaxias diferentes a cada 3 niveis.
 - **Seta esquerda/direita ou A/D**: gira a nave (o giro acelera suavemente e para rapido ao soltar)
 - **Seta para cima ou W**: acelera (o motor ganha potencia aos poucos e a nave mantem o embalo)
 - **Seta para baixo ou S**: freia
-- **SHIFT**: impulso, uma arrancada rapida para frente (recarrega em ~1,7 s; barra "IMPULSO" no HUD)
+- **SHIFT**: impulso, uma arrancada rapida para frente (ilimitado, sem recarga)
 - **ESPACO**: atira na direcao em que a nave aponta
 - **ESC**: sai do jogo
 - Na tela inicial ou de Game Over, pressione ESPACO/clique para (re)comecar
@@ -29,8 +29,10 @@ lado oposto. Os asteroides chegam por todos os lados.
 
 Se um asteroide colidir com a nave, uma vida e perdida (voce comeca com 3) e a
 nave reaparece no centro, piscando e invencivel por 2 segundos. De vez em
-quando surge um item ambar em forma de losango: ele da um escudo de 6 segundos
-que destroi os asteroides em que a nave encostar.
+a cada 6-10 segundos surge um item ambar em forma de losango (ate 2 na tela):
+ele da um escudo de 6 segundos que destroi os asteroides em que a nave
+encostar. Pegar o escudo solta uma onda de choque ambar, e cada asteroide
+esmagado pelo escudo gera onda de impacto, faiscas e um tremor na tela.
 
 ## Niveis e galaxias
 
@@ -64,7 +66,7 @@ Depois do setor 06 o ciclo recomeca. Os fundos sao gerados por codigo
 - HUD minimalista (pontos, vidas, nivel, setor/galaxia, recorde) e avisos animados
 - Tela inicial (com asteroides flutuando ao fundo) e tela de Game Over
 - Efeitos sonoros gerados por codigo (sem precisar de arquivos de audio)
-- Faiscas de explosao e item de escudo
+- Faiscas de explosao, ondas de choque e tremor de tela (ao pegar escudo, bater com escudo e ser atingido)
 
 ## Estrutura do projeto
 

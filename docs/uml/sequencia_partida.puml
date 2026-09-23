@@ -93,12 +93,15 @@ loop a cada frame, enquanto vidas > 0
       Jogo -> Nave : colide_com(item)
       Nave --> Jogo : True
       Jogo -> Nave : ativar_escudo(6 s)
+      Jogo -> Jogo : efeito_pegar_escudo()\n(2 ondas ambar, faiscas, tremor)
       Jogo -> Sons : tocar("item")
     end
     opt nave toca asteroide
       Jogo -> Nave : colide_com(meteoro)
       Nave --> Jogo : True
       alt com escudo
+        Jogo -> Jogo : efeito_impacto_escudo(meteoro)\n(onda no impacto, faiscas, tremor)
+        Jogo -> Nave : impacto_no_escudo()
         Jogo -> Jogo : destruir_asteroide(meteoro)
       else desprotegida
         Jogo -> Jogo : destruir_asteroide(meteoro)

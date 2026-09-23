@@ -35,9 +35,8 @@ FREIO_NAVE = 0.9  # multiplicador de velocidade ao frear
 ATRITO_NAVE = 0.987  # arrasto: a nave desliza, mas continua controlavel
 VELOCIDADE_MAX_NAVE = 8.0
 
-IMPULSO_DASH = 7.5  # velocidade extra do impulso (SHIFT)
+IMPULSO_DASH = 7.5  # velocidade extra do impulso (SHIFT, sem recarga)
 VELOCIDADE_MAX_DASH = 13.0  # limite de velocidade logo apos o impulso
-COOLDOWN_DASH = 100  # frames para recarregar o impulso
 DURACAO_DASH = 14  # frames em que o limite de velocidade fica mais alto
 
 VELOCIDADE_TIRO = 10.5
@@ -47,6 +46,8 @@ COOLDOWN_TIRO = 9  # frames entre disparos
 VIDAS_INICIAIS = 3
 DURACAO_INVENCIVEL = 2 * FPS  # apos ser atingido
 DURACAO_ESCUDO = 6 * FPS  # item de escudo
+INTERVALO_ESCUDO = (6 * FPS, 10 * FPS)  # um escudo novo a cada 6-10 s
+MAX_ESCUDOS_NA_TELA = 2
 
 # ---------------------------------------------------------------------------
 # Asteroides: tamanho -> (raio, pontos, multiplicador de velocidade)

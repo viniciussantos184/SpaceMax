@@ -63,27 +63,14 @@ def desenhar_icone_nave(tela, x, y, cor, escala=0.55):
 # ---------------------------------------------------------------------------
 # HUD
 # ---------------------------------------------------------------------------
-def desenhar_barra_dash(tela, fontes, carga, x, y, largura=66):
-    """Barra de recarga do impulso (SHIFT): cheia e acesa quando pronta."""
-    pronto = carga >= 1.0
-    cor = COR_PRIMARIA if pronto else COR_APAGADA
-    desenhar_texto(tela, fontes.pequena, "IMPULSO", x, y, cor, "midleft")
-    barra_x = x + 64
-    pygame.draw.rect(tela, grafico.misturar(COR_APAGADA, 0.5), (barra_x, y - 3, largura, 6), 1)
-    preenchido = int((largura - 2) * min(1.0, carga))
-    if preenchido > 0:
-        pygame.draw.rect(tela, cor, (barra_x + 1, y - 2, preenchido, 4))
-
-
-def desenhar_hud(tela, fontes, pontuacao, recorde, nivel, vidas, setor, nome_galaxia, carga_dash):
+def desenhar_hud(tela, fontes, pontuacao, recorde, nivel, vidas, setor, nome_galaxia):
     desenhar_cantoneiras(tela)
 
-    # esquerda: pontos + vidas + impulso
+    # esquerda: pontos + vidas
     desenhar_texto(tela, fontes.pequena, "PONTOS", MARGEM, 20, COR_APAGADA, "topleft")
     desenhar_texto(tela, fontes.grande, f"{pontuacao:06d}", MARGEM, 34, ancora="topleft")
     for i in range(vidas):
         desenhar_icone_nave(tela, MARGEM + 8 + i * 22, 84, COR_PRIMARIA)
-    desenhar_barra_dash(tela, fontes, carga_dash, MARGEM, 106)
 
     # centro: setor / galaxia + nivel
     desenhar_texto(
