@@ -80,7 +80,7 @@ package "spacemax" {
       + desenhar(tela)
     }
     note bottom of PlanoDeFundo
-      Uma galaxia nova a cada 10 niveis
+      Uma galaxia nova a cada 3 niveis
       (NIVEIS_POR_GALAXIA). Fundos gerados
       proceduralmente por renderizar_fundo().
     end note

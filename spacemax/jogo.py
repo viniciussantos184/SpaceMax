@@ -85,7 +85,7 @@ class Jogo:
         self.nivel = novo_nivel
         tocar(self.sons, "nivel")
 
-        # a cada 10 niveis o jogador chega a uma nova galaxia
+        # a cada 3 niveis o jogador chega a uma nova galaxia
         if self.fundo.ir_para(indice_galaxia(self.nivel)):
             self.tingir_estrelas()
             self.tempo_aviso_galaxia = DURACAO_AVISO_GALAXIA

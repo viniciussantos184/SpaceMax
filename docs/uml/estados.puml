@@ -18,7 +18,7 @@ state "Jogando" as Jogando {
   state "Galaxia N" as GalaxiaN
   state "Galaxia N+1" as GalaxiaN1
   [*] --> GalaxiaN
-  GalaxiaN --> GalaxiaN1 : nivel passa de 10 em 10\n[fundo.ir_para()]
+  GalaxiaN --> GalaxiaN1 : nivel passa de 3 em 3\n[fundo.ir_para()]
 }
 state "Game Over" as GameOver : pontos, nivel e setor\n(salva recorde se superado)
 

@@ -13,7 +13,7 @@ import pygame
 
 from .config import ALTURA, LARGURA
 
-NIVEIS_POR_GALAXIA = 10
+NIVEIS_POR_GALAXIA = 3
 ESPACAMENTO_GRADE = 48
 
 
@@ -44,7 +44,7 @@ GALAXIAS = [
 
 
 def indice_galaxia(nivel: int) -> int:
-    """Nivel 1-10 -> 0, 11-20 -> 1, ... (cresce sem limite; o tema repete em ciclo)."""
+    """Nivel 1-3 -> 0, 4-6 -> 1, ... (cresce sem limite; o tema repete em ciclo)."""
     return (nivel - 1) // NIVEIS_POR_GALAXIA
 
 

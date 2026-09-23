@@ -81,7 +81,7 @@ loop a cada frame, enquanto vidas > 0
     Jogo -> Jogo : pontuacao += meteoro.pontos
     Jogo -> Sons : tocar("explosao")
     Jogo -> Jogo : atualizar_nivel()
-    opt nivel passou de 10 em 10
+    opt nivel passou de 3 em 3
       Jogo -> Fundo : ir_para(proxima galaxia)
       Fundo --> Jogo : True
       Jogo -> Jogo : tingir_estrelas()\naviso "SETOR N"

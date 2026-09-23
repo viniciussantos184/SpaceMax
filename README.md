@@ -4,7 +4,7 @@ Jogo 2D de acao e pontuacao infinita feito em Python com pygame, no estilo do
 Asteroids classico e com visual tech minimalista (graficos vetoriais em linhas
 finas, fonte monoespacada, grade tecnica ao fundo). Pilote uma nave que gira
 360 graus e voa com inercia, quebre os asteroides em pedacos cada vez menores e
-viaje por galaxias diferentes a cada 10 niveis.
+viaje por galaxias diferentes a cada 3 niveis.
 
 ## Como jogar
 
@@ -35,17 +35,17 @@ que destroi os asteroides em que a nave encostar.
 ## Niveis e galaxias
 
 A cada 1000 pontos o jogador sobe de nivel: os asteroides ficam mais rapidos e
-aparecem com mais frequencia. **A cada 10 niveis a nave chega a uma nova
+aparecem com mais frequencia. **A cada 3 niveis a nave chega a uma nova
 galaxia** (novo "setor"), com plano de fundo, nebulosas e cores proprios:
 
 | Setor | Niveis | Galaxia |
 | --- | --- | --- |
-| 01 | 1-10 | Via Lactea (azul) |
-| 02 | 11-20 | Andromeda (violeta) |
-| 03 | 21-30 | Nuvem de Magalhaes (ambar) |
-| 04 | 31-40 | Triangulo (verde) |
-| 05 | 41-50 | Sombrero (vermelho) |
-| 06 | 51-60 | Redemoinho (gelo) |
+| 01 | 1-3 | Via Lactea (azul) |
+| 02 | 4-6 | Andromeda (violeta) |
+| 03 | 7-9 | Nuvem de Magalhaes (ambar) |
+| 04 | 10-12 | Triangulo (verde) |
+| 05 | 13-15 | Sombrero (vermelho) |
+| 06 | 16-18 | Redemoinho (gelo) |
 
 Depois do setor 06 o ciclo recomeca. Os fundos sao gerados por codigo
 (`spacemax/galaxias.py`), sem arquivos de imagem.
@@ -56,7 +56,7 @@ Depois do setor 06 o ciclo recomeca. Os fundos sao gerados por codigo
 - Rastro de exaustao do motor, jatos laterais ao girar e rastro fantasma durante o impulso
 - Asteroides que se quebram em pedacos menores (grande -> medio -> pequeno)
 - Tela sem bordas: tudo atravessa as laterais e reaparece do outro lado
-- Planos de fundo procedurais com uma galaxia diferente a cada 10 niveis, com transicao suave
+- Planos de fundo procedurais com uma galaxia diferente a cada 3 niveis, com transicao suave
 - Sistema de pontuacao por tamanho de asteroide + recorde salvo em `recorde.txt`
 - Niveis com dificuldade progressiva (velocidade e frequencia dos asteroides)
 - Sistema de vidas com reaparecimento e invencibilidade temporaria
@@ -79,7 +79,7 @@ SpaceMax/
 └── spacemax/
     ├── config.py           # constantes: tela, paleta, fisica, dificuldade
     ├── jogo.py             # classe Jogo: loop principal, regras e colisoes
-    ├── galaxias.py         # planos de fundo: uma galaxia a cada 10 niveis
+    ├── galaxias.py         # planos de fundo: uma galaxia a cada 3 niveis
     ├── grafico.py          # primitivas de desenho vetorial (linhas com brilho)
     ├── interface.py        # HUD, avisos, tela inicial e de Game Over
     ├── sons.py             # efeitos sonoros gerados por codigo
