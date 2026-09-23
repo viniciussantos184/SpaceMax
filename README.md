@@ -71,6 +71,7 @@ Os diagramas ficam em `docs/uml/`:
 | --- | --- |
 | `classes.puml` | diagrama de classes completo (atributos, metodos e relacoes) |
 | `estados.puml` | maquina de estados do jogo (Inicio, Jogando, Game Over) |
+| `sequencia_partida.puml` | sequencia de uma partida completa (inicio, jogo, game over, reinicio) |
 | `sequencia_frame.puml` | sequencia de chamadas em um frame do jogo |
 | `pacotes.puml` | dependencias entre os modulos |
 | `gerado/classes_py2puml.puml` | diagrama gerado automaticamente a partir do codigo pelo **py2puml** |

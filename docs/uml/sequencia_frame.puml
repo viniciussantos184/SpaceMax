@@ -31,6 +31,7 @@ loop a cada frame (60 FPS)
     Jogo -> Meteoro : atualizar()
 
     Jogo -> Jogo : checar_colisoes_tiro_meteoro()
+    Jogo -> Tiro : colide_com(meteoro)
     opt tiro acertou meteoro
       Jogo -> Meteoro : levar_dano()
       alt meteoro destruido
@@ -41,6 +42,7 @@ loop a cada frame (60 FPS)
     end
 
     Jogo -> Jogo : checar_colisao_nave()
+    Jogo -> Nave : colide_com(meteoro)
     opt meteoro atingiu nave sem escudo
       Jogo -> Jogo : perder_vida()
       Jogo -> Sons : tocar("colisao")

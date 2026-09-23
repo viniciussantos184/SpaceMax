@@ -1,0 +1,126 @@
+@startuml sequencia_partida
+title SpaceMax - Sequencia de uma partida completa
+
+skinparam sequenceMessageAlign center
+autonumber
+
+actor Jogador
+participant "main.py" as Main
+participant Jogo
+participant "sons" as Sons
+participant "recorde" as Recorde
+participant "interface" as UI
+participant Nave
+participant Tiro
+participant Meteoro
+participant Item
+database "recorde.txt" as Arquivo
+
+== Inicializacao ==
+Main -> Jogo ** : Jogo()
+activate Jogo
+Jogo -> UI : Fontes()
+Jogo -> Sons : criar_sons()
+Sons --> Jogo : dict[str, Sound]
+Jogo -> Recorde : carregar_recorde()
+Recorde -> Arquivo : ler
+Arquivo --> Recorde : valor
+Recorde --> Jogo : recorde
+Jogo -> Jogo : reiniciar()
+Jogo -> Nave ** : Nave()
+Jogo -> Jogo : estado = INICIO
+Main -> Jogo : executar()
+
+== Tela inicial ==
+Jogo -> UI : desenhar_tela_inicio(tela, fontes, recorde)
+Jogador -> Jogo : ESPACO / clique
+Jogo -> Jogo : acao_principal()\nestado = JOGANDO
+
+== Jogando ==
+loop a cada frame, enquanto vidas > 0
+  Jogador -> Jogo : setas / A-D
+  Jogo -> Nave : mover(direcao)
+
+  opt ESPACO pressionado
+    Jogo -> Nave : pode_atirar()
+    Nave --> Jogo : True
+    Jogo -> Nave : atirar()
+    Nave -> Tiro ** : Tiro(x, y)
+    Nave --> Jogo : tiro
+    Jogo -> Sons : tocar("tiro")
+  end
+
+  opt hora de gerar meteoro
+    Jogo -> Jogo : velocidade_meteoro()
+    Jogo -> Meteoro ** : Meteoro(vel_min, vel_max)
+  end
+
+  opt hora de gerar item
+    Jogo -> Item ** : Item()
+  end
+
+  Jogo -> Tiro : atualizar()
+  Jogo -> Meteoro : atualizar()
+  Jogo -> Item : atualizar()
+
+  group checar_colisoes_tiro_meteoro()
+    Jogo -> Tiro : colide_com(meteoro)
+    Tiro -> Meteoro : rect()
+    Meteoro --> Tiro : Rect
+    Tiro --> Jogo : True
+    Jogo -> Meteoro : levar_dano()
+    alt meteoro destruido
+      Meteoro --> Jogo : True
+      Jogo -> Jogo : pontuacao += 1
+      Jogo -> Jogo : atualizar_nivel()
+      opt subiu de nivel
+        Jogo -> Sons : tocar("nivel")
+      end
+      Jogo -> Jogo : criar_explosao(x, y)
+      Jogo -> Sons : tocar("explosao")
+    else meteoro grande ainda resiste
+      Meteoro --> Jogo : False
+    end
+  end
+
+  group checar_colisao_nave()
+    opt nave coleta item
+      Jogo -> Nave : colide_com(item)
+      Nave --> Jogo : True
+      Jogo -> Jogo : tempo_escudo = 5 s
+      Jogo -> Sons : tocar("item")
+    end
+    opt nave sem escudo atingida por meteoro
+      Jogo -> Nave : colide_com(meteoro)
+      Nave --> Jogo : True
+      Jogo -> Jogo : perder_vida()
+      Jogo -> Sons : tocar("colisao")
+      alt vidas > 0
+        Jogo -> Jogo : tempo_escudo = 2 s
+      else vidas == 0
+        Jogo -> Jogo : fim_de_jogo()
+      end
+    end
+  end
+
+  Jogo -> UI : desenhar_hud(pontuacao, nivel, vidas, ...)
+end
+
+== Game Over ==
+Jogo -> Jogo : estado = GAMEOVER
+opt pontuacao > recorde
+  Jogo -> Recorde : salvar_recorde(pontuacao)
+  Recorde -> Arquivo : gravar
+end
+Jogo -> UI : desenhar_tela_gameover(pontuacao, recorde)
+
+alt jogar novamente
+  Jogador -> Jogo : ESPACO / clique
+  Jogo -> Jogo : reiniciar()\nestado = JOGANDO
+else sair
+  Jogador -> Jogo : ESC / fechar janela
+  Jogo -> Jogo : sair()
+  deactivate Jogo
+end
+
+@enduml
