@@ -13,6 +13,7 @@ from .config import (
     COR_ASTEROIDE,
     COR_ITEM,
     COR_PRIMARIA,
+    DURACAO_AVISO_CHEFE,
     DURACAO_AVISO_NIVEL,
     DURACAO_ESCUDO,
     DURACAO_INVENCIVEL,
@@ -26,18 +27,22 @@ from .config import (
     LARGURA,
     MAX_ASTEROIDES,
     MAX_ESCUDOS_NA_TELA,
+    NIVEIS_POR_CHEFE,
+    PONTOS_CHEFE,
     PONTOS_POR_NIVEL,
     REDUCAO_SPAWN_POR_NIVEL,
     VELOCIDADE_ASTEROIDE_INICIAL,
     VELOCIDADE_ASTEROIDE_TETO,
     VIDAS_INICIAIS,
 )
-from .entidades import Estrela, Item, Meteoro, Nave, Onda, Particula, Tiro
+from .entidades import CHEFES, Estrela, Item, Meteoro, Nave, Onda, Particula, ProjetilChefe, Tiro
+from .entidades.chefes import Chefe
 from .galaxias import PlanoDeFundo, indice_galaxia
 from .recorde import carregar_recorde, salvar_recorde
 from .sons import criar_sons, tocar
 
 DURACAO_AVISO_GALAXIA = 3 * FPS
+Y_AVISO_CHEFE = ALTURA / 2 - 80  # abaixo do aviso de nivel/galaxia, sem sobrepor
 
 
 class Jogo:
@@ -68,6 +73,12 @@ class Jogo:
         self.itens: list[Item] = []
         self.particulas: list[Particula] = []
         self.ondas: list[Onda] = []
+        self.chefe: Chefe | None = None
+        self.projeteis: list[ProjetilChefe] = []
+        self.chefes_derrotados: int = 0
+        self.aviso_chefe: tuple[str, str, tuple[int, int, int]] = ("", "", COR_PRIMARIA)
+        self.tempo_aviso_chefe: int = 0
+        self.recarga_som_chefe: int = 0
         self.tremor: int = 0
         self.pontuacao: int = 0
         self.vidas: int = VIDAS_INICIAIS
@@ -87,6 +98,8 @@ class Jogo:
         return 1 + self.pontuacao // PONTOS_POR_NIVEL
 
     def atualizar_nivel(self):
+        if self.chefe:  # durante a luta contra o chefe o nivel fica congelado
+            return
         novo_nivel = self.calcular_nivel()
         if novo_nivel <= self.nivel:
             return
@@ -101,6 +114,9 @@ class Jogo:
         else:
             self.tempo_aviso_nivel = DURACAO_AVISO_NIVEL
 
+        if self.nivel >= NIVEIS_POR_CHEFE * (self.chefes_derrotados + 1):
+            self.iniciar_chefe()
+
     def velocidade_asteroide(self):
         velocidade = VELOCIDADE_ASTEROIDE_INICIAL + (self.nivel - 1) * AUMENTO_VELOCIDADE_POR_NIVEL
         return min(VELOCIDADE_ASTEROIDE_TETO, velocidade)
@@ -113,6 +129,75 @@ class Jogo:
         quantidade = min(8, ASTEROIDES_INICIAIS + (self.nivel - 1) // 2)
         for _ in range(quantidade):
             self.meteoros.append(Meteoro.na_borda(self.velocidade_asteroide()))
+
+    # ------------------------------------------------------------------ chefes
+    def iniciar_chefe(self):
+        """Chefe diferente a cada vez; depois do ultimo a lista recomeca mais forte."""
+        indice = self.chefes_derrotados
+        classe = CHEFES[indice % len(CHEFES)]
+        self.chefe = classe(ciclo=indice // len(CHEFES))
+        self.mostrar_aviso_chefe(f"ALERTA  ·  CHEFE {indice + 1:02d}", self.chefe.NOME, self.chefe.COR)
+        self.tempo_aviso_nivel = 0
+        tocar(self.sons, "alerta")
+
+    def mostrar_aviso_chefe(self, subtitulo, titulo, cor):
+        self.aviso_chefe = (subtitulo, titulo, cor)
+        self.tempo_aviso_chefe = DURACAO_AVISO_CHEFE
+
+    def atualizar_chefe(self):
+        novos = []
+        for projetil in self.projeteis:
+            projetil.atualizar()
+            estilhacos = projetil.detonar()
+            if estilhacos:
+                self.ondas.append(Onda(projetil.x, projetil.y, projetil.cor, raio_final=34, duracao=16))
+                novos.extend(estilhacos)
+        self.projeteis = [p for p in self.projeteis if not p.expirou()] + novos
+
+        if self.recarga_som_chefe > 0:
+            self.recarga_som_chefe -= 1
+        if not self.chefe:
+            return
+        self.chefe.definir_alvo(self.nave.x, self.nave.y)
+        self.chefe.atualizar()
+        disparos = self.chefe.atacar()
+        if disparos:
+            self.projeteis.extend(disparos)
+            # espirais disparam quase todo frame: limita o som para nao virar ruido
+            if self.recarga_som_chefe <= 0:
+                tocar(self.sons, "tiro_chefe")
+                self.recarga_som_chefe = 12
+
+    def danificar_chefe(self, quantidade, x, y):
+        if not self.chefe.receber_dano(quantidade):
+            return
+        self.criar_explosao(x, y, self.chefe.COR, 4)
+        tocar(self.sons, "acerto_chefe")
+        if self.chefe.morto():
+            self.derrotar_chefe()
+
+    def derrotar_chefe(self):
+        chefe = self.chefe
+        self.chefe = None
+        self.chefes_derrotados += 1
+        self.pontuacao += PONTOS_CHEFE
+
+        x, y = chefe.x, chefe.y
+        self.ondas.append(Onda(x, y, chefe.COR, raio_final=90, duracao=24))
+        self.ondas.append(Onda(x, y, chefe.COR, raio_final=170, duracao=40, raio_inicial=20))
+        self.ondas.append(Onda(x, y, (255, 255, 255), raio_final=260, duracao=56, raio_inicial=40))
+        self.criar_explosao(x, y, chefe.COR, 70)
+        self.criar_explosao(x, y, (255, 255, 255), 30)
+        # os projeteis que sobraram viram faiscas
+        for projetil in self.projeteis:
+            self.criar_explosao(projetil.x, projetil.y, projetil.cor, 2)
+        self.projeteis.clear()
+        self.tremor = max(self.tremor, 26)
+        tocar(self.sons, "chefe_derrotado")
+
+        self.mostrar_aviso_chefe("CHEFE DERROTADO", f"+{PONTOS_CHEFE}", chefe.COR)
+        self.frames_ate_proximo_spawn = self.intervalo_spawn()
+        self.atualizar_nivel()
 
     def tingir_estrelas(self):
         for estrela in self.estrelas:
@@ -191,6 +276,8 @@ class Jogo:
             self.tempo_aviso_nivel -= 1
         if self.tempo_aviso_galaxia > 0:
             self.tempo_aviso_galaxia -= 1
+        if self.tempo_aviso_chefe > 0:
+            self.tempo_aviso_chefe -= 1
 
         self.gerar_asteroides()
         self.gerar_itens()
@@ -202,8 +289,12 @@ class Jogo:
         for item in self.itens:
             item.atualizar()
 
+        self.atualizar_chefe()
+
         self.checar_colisoes_tiro_meteoro()
+        self.checar_colisoes_tiro_chefe()
         self.checar_colisao_nave()
+        self.checar_ataques_chefe()
 
         self.itens = [i for i in self.itens if not i.expirou() and not i.coletado]
 
@@ -220,6 +311,8 @@ class Jogo:
             self.disparar()
 
     def gerar_asteroides(self):
+        if self.chefe:  # durante a luta nao surgem asteroides novos
+            return
         if not self.meteoros:
             self.lancar_onda()
             self.frames_ate_proximo_spawn = self.intervalo_spawn()
@@ -247,6 +340,52 @@ class Jogo:
                     self.destruir_asteroide(meteoro)
                     break
 
+    def checar_colisoes_tiro_chefe(self):
+        for tiro in self.tiros[:]:
+            if not self.chefe:
+                return
+            if self.chefe.bloqueia(tiro):
+                self.tiros.remove(tiro)
+                self.criar_explosao(tiro.x, tiro.y, self.chefe.COR, 3)
+            elif self.chefe.atinge(tiro):
+                self.tiros.remove(tiro)
+                self.danificar_chefe(1, tiro.x, tiro.y)
+
+    def checar_ataques_chefe(self):
+        """Projeteis e corpo do chefe contra a nave (o escudo protege dos dois)."""
+        if self.estado != ESTADO_JOGANDO:
+            return
+        nave = self.nave
+        for projetil in self.projeteis[:]:
+            if not nave.colide_com(projetil):
+                continue
+            self.projeteis.remove(projetil)
+            if nave.tempo_escudo > 0:
+                self.ondas.append(Onda(projetil.x, projetil.y, COR_ITEM, raio_final=18, duracao=12))
+                nave.impacto_no_escudo()
+            elif nave.tempo_invencivel <= 0:
+                self.perder_vida()
+                return
+
+        chefe = self.chefe
+        if not chefe or not chefe.atinge(nave):
+            return
+        if nave.tempo_escudo > 0:
+            # o escudo empurra a nave para fora e causa dano no chefe
+            self.efeito_impacto_escudo(chefe, 3)
+            self.empurrar_nave(chefe)
+            self.danificar_chefe(3, nave.x, nave.y)
+        elif nave.tempo_invencivel <= 0:
+            self.perder_vida()
+
+    def empurrar_nave(self, chefe):
+        dx, dy = self.nave.x - chefe.x, self.nave.y - chefe.y
+        distancia = max(1.0, (dx * dx + dy * dy) ** 0.5)
+        ux, uy = dx / distancia, dy / distancia
+        afastamento = chefe.raio + self.nave.raio + 4
+        self.nave.x, self.nave.y = chefe.x + ux * afastamento, chefe.y + uy * afastamento
+        self.nave.vx, self.nave.vy = ux * 7, uy * 7
+
     def destruir_asteroide(self, meteoro):
         """Remove o asteroide, soma os pontos e coloca os fragmentos no lugar."""
         self.meteoros.remove(meteoro)
@@ -269,7 +408,7 @@ class Jogo:
                 continue
             if self.nave.tempo_escudo > 0:
                 # com escudo ativo, a nave destroi o que tocar
-                self.efeito_impacto_escudo(meteoro)
+                self.efeito_impacto_escudo(meteoro, meteoro.tamanho)
                 self.destruir_asteroide(meteoro)
             elif self.nave.tempo_invencivel <= 0:
                 self.destruir_asteroide(meteoro)
@@ -283,17 +422,18 @@ class Jogo:
         self.criar_explosao(x, y, COR_ITEM, 26)
         self.tremor = max(self.tremor, 6)
 
-    def efeito_impacto_escudo(self, meteoro):
-        # o ponto de impacto fica na borda do escudo, entre a nave e o asteroide
-        dx, dy = meteoro.x - self.nave.x, meteoro.y - self.nave.y
+    def efeito_impacto_escudo(self, alvo, forca):
+        """`alvo`: asteroide ou chefe atingido pelo escudo; `forca`: 1 (leve) a 3 (forte)."""
+        # o ponto de impacto fica na borda do escudo, entre a nave e o alvo
+        dx, dy = alvo.x - self.nave.x, alvo.y - self.nave.y
         distancia = max(1.0, (dx * dx + dy * dy) ** 0.5)
         x = self.nave.x + dx / distancia * 26
         y = self.nave.y + dy / distancia * 26
-        self.ondas.append(Onda(x, y, COR_ITEM, raio_final=meteoro.raio * 2.2, duracao=18))
-        self.ondas.append(Onda(meteoro.x, meteoro.y, (255, 255, 255), raio_final=meteoro.raio * 1.4, duracao=12))
-        self.criar_explosao(x, y, COR_ITEM, 12 + meteoro.tamanho * 4)
+        self.ondas.append(Onda(x, y, COR_ITEM, raio_final=alvo.raio * 2.2, duracao=18))
+        self.ondas.append(Onda(alvo.x, alvo.y, (255, 255, 255), raio_final=alvo.raio * 1.4, duracao=12))
+        self.criar_explosao(x, y, COR_ITEM, 12 + forca * 4)
         self.nave.impacto_no_escudo()
-        self.tremor = max(self.tremor, 4 + meteoro.tamanho * 3)
+        self.tremor = max(self.tremor, 4 + forca * 3)
         tocar(self.sons, "impacto_escudo")
 
     def perder_vida(self):
@@ -315,6 +455,7 @@ class Jogo:
         self.estado = ESTADO_GAMEOVER
         self.tiros.clear()
         self.itens.clear()
+        self.projeteis.clear()
         if self.pontuacao > self.recorde:
             self.recorde = self.pontuacao
             self.novo_recorde = True
@@ -331,6 +472,10 @@ class Jogo:
             item.desenhar(cena)
         for meteoro in self.meteoros:
             meteoro.desenhar(cena)
+        if self.chefe:
+            self.chefe.desenhar(cena)
+        for projetil in self.projeteis:
+            projetil.desenhar(cena)
         for tiro in self.tiros:
             tiro.desenhar(cena)
         for particula in self.particulas:
@@ -400,6 +545,16 @@ class Jogo:
             self.tempo_aviso_nivel,
             DURACAO_AVISO_NIVEL,
         )
+        subtitulo, titulo, cor = self.aviso_chefe
+        interface.desenhar_aviso(
+            self.tela, self.fontes, subtitulo, titulo, self.tempo_aviso_chefe, DURACAO_AVISO_CHEFE, cor,
+            y=Y_AVISO_CHEFE,
+        )
+        if self.chefe:
+            interface.desenhar_barra_chefe(
+                self.tela, self.fontes, self.chefes_derrotados + 1, self.chefe.NOME,
+                self.chefe.fracao_barra, self.chefe.COR,
+            )
 
     # ------------------------------------------------------------------- loop
     def executar(self):

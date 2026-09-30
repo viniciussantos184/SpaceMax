@@ -85,13 +85,12 @@ def desenhar_hud(tela, fontes, pontuacao, recorde, nivel, vidas, setor, nome_gal
     )
 
 
-def desenhar_aviso(tela, fontes, subtitulo, titulo, tempo, duracao, cor=COR_PRIMARIA):
-    """Aviso central que aparece e some suavemente (nivel novo, galaxia nova)."""
+def desenhar_aviso(tela, fontes, subtitulo, titulo, tempo, duracao, cor=COR_PRIMARIA, y=ALTURA / 2 - 150):
+    """Aviso central que aparece e some suavemente (nivel novo, galaxia nova, chefe)."""
     if tempo <= 0:
         return
     decorrido = duracao - tempo
     alpha = int(255 * min(1.0, decorrido / 20, tempo / 40))
-    y = ALTURA / 2 - 150
 
     desenhar_texto(tela, fontes.pequena, espacar(subtitulo), LARGURA / 2, y - 26, COR_APAGADA, alpha=alpha)
     rect = desenhar_texto(tela, fontes.grande, espacar(titulo), LARGURA / 2, y, cor, alpha=alpha)
@@ -101,6 +100,20 @@ def desenhar_aviso(tela, fontes, subtitulo, titulo, tempo, duracao, cor=COR_PRIM
     cor_traco = grafico.misturar(cor, alpha / 255 * 0.8)
     pygame.draw.line(tela, cor_traco, (rect.left - 16 - largura_traco, y), (rect.left - 16, y))
     pygame.draw.line(tela, cor_traco, (rect.right + 16, y), (rect.right + 16 + largura_traco, y))
+
+
+def desenhar_barra_chefe(tela, fontes, numero, nome, fracao, cor):
+    """Barra de vida do chefe: fina, segmentada em 10 partes, na base da tela."""
+    largura, altura = 360, 6
+    x, y = LARGURA / 2 - largura / 2, ALTURA - 44
+    desenhar_texto(tela, fontes.pequena, f"CHEFE {numero:02d}  ·  {nome}", LARGURA / 2, y - 14, COR_APAGADA)
+    pygame.draw.rect(tela, grafico.misturar(cor, 0.35), (x - 3, y - 3, largura + 6, altura + 6), 1)
+    preenchido = int(largura * fracao)
+    if preenchido > 0:
+        pygame.draw.rect(tela, cor, (x, y, preenchido, altura))
+    for i in range(1, 10):
+        tx = x + largura * i / 10
+        pygame.draw.line(tela, COR_FUNDO, (tx, y), (tx, y + altura - 1))
 
 
 # ---------------------------------------------------------------------------

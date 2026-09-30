@@ -78,6 +78,13 @@ MAX_ASTEROIDES = 22  # limite de asteroides na tela (inclui fragmentos)
 DURACAO_AVISO_NIVEL = 120  # frames que o aviso "LEVEL X" fica visivel
 
 # ---------------------------------------------------------------------------
+# Chefes
+# ---------------------------------------------------------------------------
+NIVEIS_POR_CHEFE = 5  # um chefe no nivel 5, 10, 15...
+PONTOS_CHEFE = 1500
+DURACAO_AVISO_CHEFE = 3 * FPS
+
+# ---------------------------------------------------------------------------
 # Arquivos
 # ---------------------------------------------------------------------------
 PASTA_PROJETO = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))

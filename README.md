@@ -52,6 +52,25 @@ galaxia** (novo "setor"), com plano de fundo, nebulosas e cores proprios:
 Depois do setor 06 o ciclo recomeca. Os fundos sao gerados por codigo
 (`spacemax/galaxias.py`), sem arquivos de imagem.
 
+## Chefes
+
+**A cada 5 niveis (5, 10, 15...) aparece um chefe.** Durante a luta nao surgem
+asteroides novos e o nivel fica congelado ate o chefe ser derrotado, o que vale
+1500 pontos. Uma barra de vida aparece na base da tela. Abaixo de metade da
+vida o chefe fica "furioso" e ataca mais rapido. Encostar nele sem escudo custa
+uma vida; com escudo, a nave e empurrada para longe e causa dano.
+
+| # | Nivel | Chefe | Forma | Ataque |
+| --- | --- | --- | --- | --- |
+| 01 | 5 | Sentinela (vermelho) | hexagono com anel segmentado | rajadas em circulo |
+| 02 | 10 | Arpao (violeta) | ponta de flecha que vira para a nave | leque de tiros mirados |
+| 03 | 15 | Orbita (verde) | losango com 3 satelites | espiral; os satelites bloqueiam tiros e tambem atiram |
+| 04 | 20 | Prisma (rosa) | quadrado duplo | mira (linha tracejada), investe contra a nave e solta um anel |
+| 05 | 25 | Nucleo (laranja) | aneis concentricos | espiral dupla e minas que explodem em estilhacos |
+
+Depois do 5o chefe a lista recomeca com os chefes mais fortes (mais vida,
+tiros mais rapidos e frequentes).
+
 ## Elementos implementados
 
 - Nave vetorial que gira 360 graus com giro progressivo, acelera com inercia, freia, usa impulso (CONTROL) e atira na direcao em que aponta
@@ -67,6 +86,7 @@ Depois do setor 06 o ciclo recomeca. Os fundos sao gerados por codigo
 - Tela inicial (com asteroides flutuando ao fundo) e tela de Game Over
 - Efeitos sonoros gerados por codigo (sem precisar de arquivos de audio)
 - Faiscas de explosao, ondas de choque e tremor de tela (ao pegar escudo, bater com escudo e ser atingido)
+- Cinco chefes diferentes, um a cada 5 niveis, com barra de vida e aviso de entrada
 
 ## Estrutura do projeto
 
@@ -92,6 +112,8 @@ SpaceMax/
         ├── tiro.py         # tiros
         ├── meteoro.py      # asteroides (quebram em pedacos menores)
         ├── item.py         # item de escudo
+        ├── chefes.py       # chefes (um a cada 5 niveis) e a ordem em que aparecem
+        ├── projetil.py     # projeteis e minas dos chefes
         ├── particula.py    # particulas de explosao
         └── estrela.py      # estrelas do cenario
 ```
