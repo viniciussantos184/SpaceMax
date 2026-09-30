@@ -46,6 +46,9 @@ def criar_sons():
             "tiro_chefe": gerar_som(320, 0.07, 0.08, "senoide"),
             "acerto_chefe": gerar_som(900, 0.03, 0.08, "quadrada"),
             "chefe_derrotado": gerar_som(70, 0.9, 0.35, "ruido"),
+            "tiro_explosivo": gerar_som(240, 0.12, 0.2, "quadrada"),
+            "explosao_grande": gerar_som(60, 0.45, 0.32, "ruido"),
+            "troca_arma": gerar_som(1000, 0.05, 0.12, "senoide"),
         }
     except pygame.error:
         return None

@@ -25,6 +25,7 @@ from spacemax.entidades import Entidade, EntidadeColidivel  # noqa: E402
 # argumentos para instanciar as classes que exigem parametros no construtor
 ARGUMENTOS_TESTE = {
     "Tiro": (100, 100, 0),
+    "TiroExplosivo": (100, 100, 0),
     "Particula": (100, 100),
     "Meteoro": (100, 100),
     "Onda": (100, 100, (255, 255, 255)),

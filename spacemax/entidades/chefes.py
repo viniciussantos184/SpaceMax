@@ -18,6 +18,11 @@ from .projetil import ProjetilChefe
 DURACAO_ENTRADA = 2 * FPS
 POSICAO_INICIAL_Y = 160  # altura em que o chefe para ao terminar a entrada
 
+# ajuste geral de dificuldade (vale para todos os chefes)
+FATOR_VIDA = 0.45  # fracao da VIDA_BASE de cada chefe
+FATOR_INTERVALO = 1.7  # multiplica o intervalo entre ataques (maior = ataca menos)
+FATOR_VELOCIDADE = 0.7  # multiplica a velocidade dos projeteis
+
 
 def _poligono_regular(lados, raio, giro=0.0):
     return [
@@ -38,7 +43,7 @@ class Chefe(EntidadeColidivel):
     def __init__(self, ciclo: int = 0):
         super().__init__(LARGURA / 2, -self.RAIO * 2, self.RAIO)
         self.ciclo: int = ciclo  # quantas vezes a lista de chefes ja deu a volta
-        self.vida_max: int = int(self.VIDA_BASE * (1 + 0.5 * ciclo))
+        self.vida_max: int = int(self.VIDA_BASE * FATOR_VIDA * (1 + 0.35 * ciclo))
         self.vida: int = self.vida_max
         self.tempo: int = 0
         self.tempo_entrada: int = DURACAO_ENTRADA
@@ -118,7 +123,7 @@ class Chefe(EntidadeColidivel):
     # ------------------------------------------------------------ utilitarios
     def ritmo(self, frames):
         """Intervalo entre ataques: menor na fase furiosa e a cada volta do ciclo."""
-        fator = (0.7 if self.furioso else 1.0) * 0.85 ** self.ciclo
+        fator = FATOR_INTERVALO * (0.8 if self.furioso else 1.0) * 0.9 ** self.ciclo
         return max(4, int(frames * fator))
 
     def pronto(self, nome, intervalo) -> bool:
@@ -143,7 +148,7 @@ class Chefe(EntidadeColidivel):
         """Projetil em `angulo` (graus, 0 = direita, sentido horario na tela)."""
         rad = math.radians(angulo)
         x, y = origem or (self.x, self.y)
-        velocidade *= 1 + 0.15 * self.ciclo
+        velocidade *= FATOR_VELOCIDADE * (1 + 0.1 * self.ciclo)
         return ProjetilChefe(x, y, math.cos(rad) * velocidade, math.sin(rad) * velocidade, self.COR, **extra)
 
     def rajada_circular(self, quantidade, velocidade, deslocamento=0.0):
@@ -385,7 +390,7 @@ class Prisma(Chefe):
     EXTERNO = [(-30, -30), (30, -30), (30, 30), (-30, 30)]
     INTERNO = [(-15, -15), (15, -15), (15, 15), (-15, 15)]
     MIRANDO, INVESTIDA, RECUPERANDO = range(3)
-    TRAVA_MIRA = 15  # ultimos frames da mira: o alvo congela (da para desviar)
+    TRAVA_MIRA = 25  # ultimos frames da mira: o alvo congela (da para desviar)
 
     def __init__(self, ciclo: int = 0):
         super().__init__(ciclo)
@@ -405,7 +410,7 @@ class Prisma(Chefe):
             if self.tempo_fase <= 0:
                 dx, dy = self.mira[0] - self.x, self.mira[1] - self.y
                 distancia = max(1.0, math.hypot(dx, dy))
-                velocidade = 10.5 + self.ciclo
+                velocidade = 8.0 + 0.7 * self.ciclo
                 self.vx, self.vy = dx / distancia * velocidade, dy / distancia * velocidade
                 self.fase, self.tempo_fase = self.INVESTIDA, 45
 

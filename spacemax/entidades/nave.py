@@ -9,10 +9,13 @@ from .. import grafico
 from ..config import (
     ACELERACAO_NAVE,
     ACELERACAO_ROTACAO,
+    ARMA_EXPLOSIVA,
+    ARMA_NORMAL,
     ALTURA,
     AMORTECIMENTO_ROTACAO,
     ATRITO_NAVE,
     COOLDOWN_TIRO,
+    COOLDOWN_TIRO_EXPLOSIVO,
     COR_CHAMA,
     COR_ITEM,
     COR_PRIMARIA,
@@ -20,14 +23,16 @@ from ..config import (
     FREIO_NAVE,
     IMPULSO_DASH,
     LARGURA,
+    MUNICAO_EXPLOSIVA,
     RAMPA_PROPULSOR,
+    RECARGA_EXPLOSIVA,
     ROTACAO_MAX_NAVE,
     VELOCIDADE_MAX_DASH,
     VELOCIDADE_MAX_NAVE,
 )
 from .base import EntidadeColidivel
 from .particula import Particula
-from .tiro import Tiro
+from .tiro import Tiro, TiroExplosivo
 
 # contorno da nave em coordenadas locais (nariz apontando para cima)
 CASCO = [(0, -20), (5, -6), (14, 12), (5, 8), (-5, 8), (-14, 12), (-5, -6)]
@@ -55,6 +60,9 @@ class Nave(EntidadeColidivel):
         self.tempo_invencivel: int = 0  # piscando apos ser atingida
         self.clarao: int = 0  # brilho ao pegar escudo / bater com escudo
         self.frame: int = 0
+        self.arma: str = ARMA_NORMAL
+        self.municao_explosiva: int = MUNICAO_EXPLOSIVA
+        self.tempo_recarga_explosiva: int = 0  # conta enquanto falta municao
 
     # ----------------------------------------------------------------- controle
     def girar(self, direcao):
@@ -100,12 +108,30 @@ class Nave(EntidadeColidivel):
         self.vx *= fator
         self.vy *= fator
 
+    def trocar_arma(self):
+        self.arma = ARMA_EXPLOSIVA if self.arma == ARMA_NORMAL else ARMA_NORMAL
+
+    @property
+    def fracao_recarga(self) -> float:
+        """0..1: progresso da recarga dos tiros explosivos (1 = cheio)."""
+        if self.municao_explosiva >= MUNICAO_EXPLOSIVA:
+            return 1.0
+        return 1 - self.tempo_recarga_explosiva / RECARGA_EXPLOSIVA
+
     def pode_atirar(self):
+        if self.arma == ARMA_EXPLOSIVA and self.municao_explosiva <= 0:
+            return False
         return self.cooldown_atual <= 0
 
     def atirar(self):
-        self.cooldown_atual = COOLDOWN_TIRO
         (bico_x, bico_y), = grafico.rotacionar([PONTA_NARIZ], self.angulo, self.x, self.y)
+        if self.arma == ARMA_EXPLOSIVA:
+            self.cooldown_atual = COOLDOWN_TIRO_EXPLOSIVO
+            if self.municao_explosiva == MUNICAO_EXPLOSIVA:
+                self.tempo_recarga_explosiva = RECARGA_EXPLOSIVA
+            self.municao_explosiva -= 1
+            return TiroExplosivo(bico_x, bico_y, self.angulo, self.vx, self.vy)
+        self.cooldown_atual = COOLDOWN_TIRO
         return Tiro(bico_x, bico_y, self.angulo, self.vx, self.vy)
 
     # ---------------------------------------------------------------- protecao
@@ -148,6 +174,12 @@ class Nave(EntidadeColidivel):
         self.vy *= ATRITO_NAVE
         self.limitar_velocidade()
         self.mover()
+
+        # os 3 tiros explosivos voltam juntos 30 s apos o primeiro disparo
+        if self.municao_explosiva < MUNICAO_EXPLOSIVA:
+            self.tempo_recarga_explosiva -= 1
+            if self.tempo_recarga_explosiva <= 0:
+                self.municao_explosiva = MUNICAO_EXPLOSIVA
 
         for atributo in ("cooldown_atual", "tempo_dash",
                          "tempo_escudo", "tempo_invencivel", "clarao"):

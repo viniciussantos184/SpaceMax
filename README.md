@@ -13,6 +13,7 @@ viaje por galaxias diferentes a cada 3 niveis.
 - **Seta para baixo ou S**: freia
 - **CONTROL**: impulso, uma arrancada rapida para frente (ilimitado, sem recarga)
 - **ESPACO**: atira na direcao em que a nave aponta
+- **Q ou TAB**: troca entre a arma normal e a explosiva
 - **ESC**: sai do jogo
 - Na tela inicial ou de Game Over, pressione ESPACO/clique para (re)comecar
 
@@ -27,9 +28,10 @@ lado oposto. Os asteroides chegam por todos os lados.
 | Medio | quebra em 2 pequenos (mais rapidos) | 50 |
 | Pequeno | e destruido | 100 |
 
-Se um asteroide colidir com a nave, uma vida e perdida (voce comeca com 3) e a
-nave reaparece no centro, piscando e invencivel por 2 segundos. De vez em
-a cada 6-10 segundos surge um item ambar em forma de losango (ate 2 na tela):
+Se um asteroide colidir com a nave, uma vida e perdida (voce comeca com 5) e a
+nave reaparece no centro, piscando e invencivel por 2 segundos. A cada 1000
+pontos o jogador ganha uma vida extra, ate o limite de 5 vidas. A
+cada 6-10 segundos surge um item ambar em forma de losango (ate 2 na tela):
 ele da um escudo de 6 segundos que destroi os asteroides em que a nave
 encostar. Pegar o escudo solta uma onda de choque ambar, e cada asteroide
 esmagado pelo escudo gera onda de impacto, faiscas e um tremor na tela.
@@ -51,6 +53,15 @@ galaxia** (novo "setor"), com plano de fundo, nebulosas e cores proprios:
 
 Depois do setor 06 o ciclo recomeca. Os fundos sao gerados por codigo
 (`spacemax/galaxias.py`), sem arquivos de imagem.
+
+## Arma explosiva
+
+Com **Q** ou **TAB** a nave alterna entre a arma normal e a **explosiva**. A
+explosiva tem **3 tiros**: o disparo e mais lento e explode ao acertar algo (ou
+ao fim do alcance), quebrando os asteroides na area, apagando os projeteis dos
+chefes e causando dano extra no chefe. Os 3 tiros voltam juntos **30 segundos**
+depois do primeiro disparo. O canto inferior esquerdo mostra a arma atual, os
+tiros restantes e a barra de recarga.
 
 ## Chefes
 

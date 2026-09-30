@@ -8,11 +8,14 @@ import pygame
 from . import interface
 from .config import (
     ALTURA,
+    ARMA_EXPLOSIVA,
     ASTEROIDES_INICIAIS,
     AUMENTO_VELOCIDADE_POR_NIVEL,
     COR_ASTEROIDE,
+    COR_EXPLOSIVO,
     COR_ITEM,
     COR_PRIMARIA,
+    DANO_EXPLOSAO_CHEFE,
     DURACAO_AVISO_CHEFE,
     DURACAO_AVISO_NIVEL,
     DURACAO_ESCUDO,
@@ -27,13 +30,17 @@ from .config import (
     LARGURA,
     MAX_ASTEROIDES,
     MAX_ESCUDOS_NA_TELA,
+    MUNICAO_EXPLOSIVA,
     NIVEIS_POR_CHEFE,
     PONTOS_CHEFE,
     PONTOS_POR_NIVEL,
+    PONTOS_POR_VIDA,
+    RAIO_EXPLOSAO,
     REDUCAO_SPAWN_POR_NIVEL,
     VELOCIDADE_ASTEROIDE_INICIAL,
     VELOCIDADE_ASTEROIDE_TETO,
     VIDAS_INICIAIS,
+    VIDAS_MAXIMAS,
 )
 from .entidades import CHEFES, Estrela, Item, Meteoro, Nave, Onda, Particula, ProjetilChefe, Tiro
 from .entidades.chefes import Chefe
@@ -82,6 +89,7 @@ class Jogo:
         self.tremor: int = 0
         self.pontuacao: int = 0
         self.vidas: int = VIDAS_INICIAIS
+        self.pontos_proxima_vida: int = PONTOS_POR_VIDA
         self.nivel: int = 1
         self.novo_recorde: bool = False
         self.tempo_aviso_nivel: int = 0
@@ -180,7 +188,7 @@ class Jogo:
         chefe = self.chefe
         self.chefe = None
         self.chefes_derrotados += 1
-        self.pontuacao += PONTOS_CHEFE
+        self.somar_pontos(PONTOS_CHEFE)
 
         x, y = chefe.x, chefe.y
         self.ondas.append(Onda(x, y, chefe.COR, raio_final=90, duracao=24))
@@ -219,6 +227,9 @@ class Jogo:
                 if evento.key in (pygame.K_LCTRL, pygame.K_RCTRL):
                     self.usar_dash()
 
+                if evento.key in (pygame.K_q, pygame.K_TAB):
+                    self.trocar_arma()
+
             if evento.type == pygame.MOUSEBUTTONDOWN:
                 self.acao_principal()
 
@@ -231,8 +242,14 @@ class Jogo:
 
     def disparar(self):
         if self.nave.pode_atirar():
-            self.tiros.append(self.nave.atirar())
-            tocar(self.sons, "tiro")
+            tiro = self.nave.atirar()
+            self.tiros.append(tiro)
+            tocar(self.sons, "tiro_explosivo" if tiro.EXPLOSIVO else "tiro")
+
+    def trocar_arma(self):
+        if self.estado == ESTADO_JOGANDO:
+            self.nave.trocar_arma()
+            tocar(self.sons, "troca_arma")
 
     def usar_dash(self):
         if self.estado == ESTADO_JOGANDO:
@@ -284,6 +301,8 @@ class Jogo:
 
         for tiro in self.tiros:
             tiro.atualizar()
+            if tiro.EXPLOSIVO and tiro.expirou():
+                self.explodir(tiro.x, tiro.y)  # explode sozinho ao fim do alcance
         self.tiros = [t for t in self.tiros if not t.expirou()]
 
         for item in self.itens:
@@ -337,19 +356,44 @@ class Jogo:
             for meteoro in self.meteoros:
                 if tiro.colide_com(meteoro):
                     self.tiros.remove(tiro)
-                    self.destruir_asteroide(meteoro)
+                    if tiro.EXPLOSIVO:
+                        self.explodir(tiro.x, tiro.y)
+                    else:
+                        self.destruir_asteroide(meteoro)
                     break
 
     def checar_colisoes_tiro_chefe(self):
         for tiro in self.tiros[:]:
             if not self.chefe:
                 return
-            if self.chefe.bloqueia(tiro):
+            if tiro.EXPLOSIVO and (self.chefe.bloqueia(tiro) or self.chefe.atinge(tiro)):
+                self.tiros.remove(tiro)
+                self.explodir(tiro.x, tiro.y)
+            elif self.chefe.bloqueia(tiro):
                 self.tiros.remove(tiro)
                 self.criar_explosao(tiro.x, tiro.y, self.chefe.COR, 3)
             elif self.chefe.atinge(tiro):
                 self.tiros.remove(tiro)
                 self.danificar_chefe(1, tiro.x, tiro.y)
+
+    def explodir(self, x, y):
+        """Tiro explosivo: quebra asteroides, apaga projeteis e fere o chefe dentro da area."""
+        self.ondas.append(Onda(x, y, COR_EXPLOSIVO, raio_final=RAIO_EXPLOSAO, duracao=22))
+        self.ondas.append(Onda(x, y, (255, 230, 200), raio_final=RAIO_EXPLOSAO * 0.6, duracao=14))
+        self.criar_explosao(x, y, COR_EXPLOSIVO, 40)
+        self.tremor = max(self.tremor, 10)
+        tocar(self.sons, "explosao_grande")
+
+        def na_area(entidade):
+            return ((entidade.x - x) ** 2 + (entidade.y - y) ** 2) ** 0.5 < RAIO_EXPLOSAO + entidade.raio
+
+        for meteoro in [m for m in self.meteoros if na_area(m)]:
+            self.destruir_asteroide(meteoro)
+        for projetil in [p for p in self.projeteis if na_area(p)]:
+            self.projeteis.remove(projetil)
+            self.criar_explosao(projetil.x, projetil.y, projetil.cor, 2)
+        if self.chefe and na_area(self.chefe):
+            self.danificar_chefe(DANO_EXPLOSAO_CHEFE, x, y)
 
     def checar_ataques_chefe(self):
         """Projeteis e corpo do chefe contra a nave (o escudo protege dos dois)."""
@@ -386,11 +430,21 @@ class Jogo:
         self.nave.x, self.nave.y = chefe.x + ux * afastamento, chefe.y + uy * afastamento
         self.nave.vx, self.nave.vy = ux * 7, uy * 7
 
+    def somar_pontos(self, pontos):
+        """Soma pontos e da uma vida extra a cada PONTOS_POR_VIDA (ate VIDAS_MAXIMAS)."""
+        self.pontuacao += pontos
+        while self.pontuacao >= self.pontos_proxima_vida:
+            self.pontos_proxima_vida += PONTOS_POR_VIDA
+            if self.vidas < VIDAS_MAXIMAS:
+                self.vidas += 1
+                self.ondas.append(Onda(self.nave.x, self.nave.y, COR_PRIMARIA, raio_final=60, duracao=20))
+                tocar(self.sons, "item")
+
     def destruir_asteroide(self, meteoro):
         """Remove o asteroide, soma os pontos e coloca os fragmentos no lugar."""
         self.meteoros.remove(meteoro)
         self.meteoros.extend(meteoro.quebrar())
-        self.pontuacao += meteoro.pontos
+        self.somar_pontos(meteoro.pontos)
         self.criar_explosao(meteoro.x, meteoro.y, COR_ASTEROIDE, 6 + meteoro.tamanho * 5)
         tocar(self.sons, "explosao")
         self.atualizar_nivel()
@@ -549,6 +603,11 @@ class Jogo:
         interface.desenhar_aviso(
             self.tela, self.fontes, subtitulo, titulo, self.tempo_aviso_chefe, DURACAO_AVISO_CHEFE, cor,
             y=Y_AVISO_CHEFE,
+        )
+        nave = self.nave
+        interface.desenhar_arma(
+            self.tela, self.fontes, nave.arma, nave.arma == ARMA_EXPLOSIVA,
+            nave.municao_explosiva, MUNICAO_EXPLOSIVA, nave.fracao_recarga,
         )
         if self.chefe:
             interface.desenhar_barra_chefe(

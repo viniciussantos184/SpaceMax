@@ -21,6 +21,7 @@ COR_ASTEROIDE = (170, 178, 190)
 COR_PERIGO = (255, 84, 112)  # vermelho: vidas, colisao
 COR_ITEM = (255, 200, 87)  # ambar: escudo
 COR_CHAMA = (255, 150, 70)
+COR_EXPLOSIVO = (255, 110, 50)  # laranja: tiro explosivo
 
 # ---------------------------------------------------------------------------
 # Nave
@@ -43,7 +44,19 @@ VELOCIDADE_TIRO = 10.5
 ALCANCE_TIRO = 52  # frames de vida do tiro
 COOLDOWN_TIRO = 9  # frames entre disparos
 
-VIDAS_INICIAIS = 3
+# arma explosiva (troca com Q / TAB): poucos tiros, recarga lenta
+ARMA_NORMAL, ARMA_EXPLOSIVA = "NORMAL", "EXPLOSIVA"
+MUNICAO_EXPLOSIVA = 3
+RECARGA_EXPLOSIVA = 30 * FPS  # 30 s para recarregar os 3 tiros
+COOLDOWN_TIRO_EXPLOSIVO = 30
+VELOCIDADE_TIRO_EXPLOSIVO = 7.5
+ALCANCE_TIRO_EXPLOSIVO = 70  # frames; explode sozinho ao fim do alcance
+RAIO_EXPLOSAO = 95
+DANO_EXPLOSAO_CHEFE = 6
+
+VIDAS_INICIAIS = 5
+VIDAS_MAXIMAS = 5
+PONTOS_POR_VIDA = 1000  # uma vida extra a cada 1000 pontos (ate VIDAS_MAXIMAS)
 DURACAO_INVENCIVEL = 2 * FPS  # apos ser atingido
 DURACAO_ESCUDO = 6 * FPS  # item de escudo
 INTERVALO_ESCUDO = (6 * FPS, 10 * FPS)  # um escudo novo a cada 6-10 s

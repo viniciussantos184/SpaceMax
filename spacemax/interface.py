@@ -6,6 +6,7 @@ from . import grafico
 from .config import (
     ALTURA,
     COR_APAGADA,
+    COR_EXPLOSIVO,
     COR_FUNDO,
     COR_ITEM,
     COR_PERIGO,
@@ -116,6 +117,26 @@ def desenhar_barra_chefe(tela, fontes, numero, nome, fracao, cor):
         pygame.draw.line(tela, COR_FUNDO, (tx, y), (tx, y + altura - 1))
 
 
+def desenhar_arma(tela, fontes, arma, explosiva, municao, municao_max, fracao_recarga):
+    """Canto inferior esquerdo: arma atual, tiros explosivos e barra de recarga."""
+    x, y = MARGEM, ALTURA - 72
+    desenhar_texto(tela, fontes.pequena, "ARMA  [Q]", x, y, COR_APAGADA, "topleft")
+    cor = COR_EXPLOSIVO if explosiva else COR_PRIMARIA
+    desenhar_texto(tela, fontes.media, arma, x, y + 16, cor, "topleft")
+
+    # municao explosiva: um circulo por tiro (cheio = disponivel)
+    for i in range(municao_max):
+        centro = (x + 6 + i * 18, y + 48)
+        if i < municao:
+            pygame.draw.circle(tela, COR_EXPLOSIVO, centro, 5)
+        else:
+            pygame.draw.circle(tela, grafico.misturar(COR_EXPLOSIVO, 0.4), centro, 5, 1)
+    if municao < municao_max:
+        bx, largura = x + municao_max * 18 + 6, 70
+        pygame.draw.rect(tela, grafico.misturar(COR_EXPLOSIVO, 0.35), (bx, y + 45, largura, 6), 1)
+        pygame.draw.rect(tela, COR_EXPLOSIVO, (bx + 1, y + 46, int((largura - 2) * fracao_recarga), 4))
+
+
 # ---------------------------------------------------------------------------
 # Telas
 # ---------------------------------------------------------------------------
@@ -147,10 +168,11 @@ def desenhar_tela_inicio(tela, fontes, recorde, frame):
         ("FREAR", "SETA BAIXO  ou  S"),
         ("IMPULSO", "CONTROL"),
         ("ATIRAR", "ESPACO"),
+        ("TROCAR ARMA", "Q  ou  TAB"),
         ("SAIR", "ESC"),
     ]
     for i, (acao, teclas) in enumerate(controles):
-        _linha_controle(tela, fontes, cy - 40 + i * 22, acao, teclas)
+        _linha_controle(tela, fontes, cy - 50 + i * 21, acao, teclas)
 
     _prompt_piscando(tela, fontes, "PRESSIONE ESPACO", cy + 108, frame)
     desenhar_texto(tela, fontes.pequena, f"RECORDE  {recorde:06d}", LARGURA / 2, cy + 150, COR_APAGADA)

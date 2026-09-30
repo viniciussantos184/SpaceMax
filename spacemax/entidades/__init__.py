@@ -9,7 +9,7 @@ from .nave import Nave
 from .onda import Onda
 from .particula import Particula
 from .projetil import ProjetilChefe
-from .tiro import Tiro
+from .tiro import Tiro, TiroExplosivo
 
 __all__ = [
     "Arpao",
@@ -27,4 +27,5 @@ __all__ = [
     "ProjetilChefe",
     "Sentinela",
     "Tiro",
+    "TiroExplosivo",
 ]
