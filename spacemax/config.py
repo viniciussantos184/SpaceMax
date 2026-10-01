@@ -94,6 +94,7 @@ DURACAO_AVISO_NIVEL = 120  # frames que o aviso "LEVEL X" fica visivel
 # Chefes
 # ---------------------------------------------------------------------------
 NIVEIS_POR_CHEFE = 5  # um chefe no nivel 5, 10, 15...
+NIVEIS_POR_MELHORIA = 6  # escolha de melhoria no nivel 6, 12, 18... (e ao derrotar um chefe)
 PONTOS_CHEFE = 1500
 DURACAO_AVISO_CHEFE = 3 * FPS
 
@@ -109,3 +110,5 @@ CAMINHO_RECORDE = os.path.join(PASTA_PROJETO, "recorde.txt")
 ESTADO_INICIO = "inicio"
 ESTADO_JOGANDO = "jogando"
 ESTADO_GAMEOVER = "gameover"
+ESTADO_PAUSADO = "pausado"
+ESTADO_MELHORIA = "melhoria"  # escolhendo a melhoria do nivel novo

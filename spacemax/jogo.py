@@ -5,7 +5,21 @@ import sys
 
 import pygame
 
-from . import interface
+from . import interface, melhorias
+from .controle import (
+    BOTAO_CONFIRMAR,
+    BOTAO_MENU,
+    BOTAO_PAUSA,
+    BOTAO_TELA_CHEIA,
+    BOTOES_ARMA,
+    BOTOES_CONTINUAR,
+    BOTOES_DASH,
+    BOTOES_INICIAR,
+    BOTOES_MENU_DIREITA,
+    BOTOES_MENU_ESQUERDA,
+    BOTOES_TIRO,
+    Controles,
+)
 from .config import (
     ALTURA,
     ARMA_EXPLOSIVA,
@@ -23,6 +37,8 @@ from .config import (
     ESTADO_GAMEOVER,
     ESTADO_INICIO,
     ESTADO_JOGANDO,
+    ESTADO_MELHORIA,
+    ESTADO_PAUSADO,
     FPS,
     INTERVALO_SPAWN_INICIAL,
     INTERVALO_ESCUDO,
@@ -30,8 +46,8 @@ from .config import (
     LARGURA,
     MAX_ASTEROIDES,
     MAX_ESCUDOS_NA_TELA,
-    MUNICAO_EXPLOSIVA,
     NIVEIS_POR_CHEFE,
+    NIVEIS_POR_MELHORIA,
     PONTOS_CHEFE,
     PONTOS_POR_NIVEL,
     PONTOS_POR_VIDA,
@@ -49,15 +65,22 @@ from .recorde import carregar_recorde, salvar_recorde
 from .sons import criar_sons, tocar
 
 DURACAO_AVISO_GALAXIA = 3 * FPS
+PONTOS_DRONE = 25
 Y_AVISO_CHEFE = ALTURA / 2 - 80  # abaixo do aviso de nivel/galaxia, sem sobrepor
+ATRASO_ESCOLHA = 30  # frames antes de aceitar a escolha (evita escolher sem querer atirando)
+TECLAS_OPCAO = {pygame.K_1: 0, pygame.K_2: 1, pygame.K_3: 2, pygame.K_KP1: 0, pygame.K_KP2: 1, pygame.K_KP3: 2}
+TECLAS_CONFIRMAR = (pygame.K_RETURN, pygame.K_KP_ENTER, pygame.K_SPACE)
 
 
 class Jogo:
     def __init__(self):
         pygame.init()
-        self.tela: pygame.Surface = pygame.display.set_mode((LARGURA, ALTURA))
+        # SCALED: a tela cheia amplia o jogo mantendo a resolucao interna
+        self.tela: pygame.Surface = pygame.display.set_mode((LARGURA, ALTURA), pygame.SCALED)
+        self.tela_cheia: bool = False
         pygame.display.set_caption("SpaceMax")
         self.relogio: pygame.time.Clock = pygame.time.Clock()
+        self.controles: Controles = Controles()
 
         self.fontes: interface.Fontes = interface.Fontes()
         self.sons: dict[str, pygame.mixer.Sound] | None = criar_sons()
@@ -96,6 +119,10 @@ class Jogo:
         self.tempo_aviso_galaxia: int = DURACAO_AVISO_GALAXIA
         self.frames_ate_proximo_spawn: int = INTERVALO_SPAWN_INICIAL
         self.tempo_ate_proximo_item: int = random.randint(*INTERVALO_ESCUDO) // 2
+        self.melhorias_pendentes: int = 0
+        self.opcoes_melhoria: list[melhorias.Melhoria] = []
+        self.selecao_melhoria: int = 0
+        self.tempo_tela_melhoria: int = 0
 
         self.fundo.ir_para(0, com_transicao=False)
         self.tingir_estrelas()
@@ -111,6 +138,8 @@ class Jogo:
         novo_nivel = self.calcular_nivel()
         if novo_nivel <= self.nivel:
             return
+        # a escolha abre no fim do frame (pode estar no meio das colisoes aqui)
+        self.melhorias_pendentes += novo_nivel // NIVEIS_POR_MELHORIA - self.nivel // NIVEIS_POR_MELHORIA
         self.nivel = novo_nivel
         tocar(self.sons, "nivel")
 
@@ -155,6 +184,8 @@ class Jogo:
     def atualizar_chefe(self):
         novos = []
         for projetil in self.projeteis:
+            if projetil.guiado:
+                projetil.alvo = (self.nave.x, self.nave.y)
             projetil.atualizar()
             estilhacos = projetil.detonar()
             if estilhacos:
@@ -168,6 +199,9 @@ class Jogo:
             return
         self.chefe.definir_alvo(self.nave.x, self.nave.y)
         self.chefe.atualizar()
+        if self.chefe.som_pendente:
+            tocar(self.sons, self.chefe.som_pendente)
+            self.chefe.som_pendente = None
         disparos = self.chefe.atacar()
         if disparos:
             self.projeteis.extend(disparos)
@@ -177,7 +211,7 @@ class Jogo:
                 self.recarga_som_chefe = 12
 
     def danificar_chefe(self, quantidade, x, y):
-        if not self.chefe.receber_dano(quantidade):
+        if not self.chefe.receber_dano(quantidade, x, y):
             return
         self.criar_explosao(x, y, self.chefe.COR, 4)
         tocar(self.sons, "acerto_chefe")
@@ -205,7 +239,40 @@ class Jogo:
 
         self.mostrar_aviso_chefe("CHEFE DERROTADO", f"+{PONTOS_CHEFE}", chefe.COR)
         self.frames_ate_proximo_spawn = self.intervalo_spawn()
+        # o nivel estava congelado e pode saltar varios de uma vez agora;
+        # a recompensa e uma unica melhoria, mesmo que o salto passe por um multiplo de 6
+        pendentes = self.melhorias_pendentes
         self.atualizar_nivel()
+        self.melhorias_pendentes = pendentes + 1
+
+    # --------------------------------------------------------------- melhorias
+    def abrir_melhoria(self):
+        self.opcoes_melhoria = melhorias.sortear_opcoes(self.nave.melhorias, self.vidas < VIDAS_MAXIMAS)
+        if not self.opcoes_melhoria:  # tudo no maximo
+            self.melhorias_pendentes = 0
+            return
+        self.estado = ESTADO_MELHORIA
+        self.selecao_melhoria = 0
+        self.tempo_tela_melhoria = 0
+        tocar(self.sons, "melhoria")
+
+    def mover_selecao(self, direcao):
+        self.selecao_melhoria = (self.selecao_melhoria + direcao) % len(self.opcoes_melhoria)
+        tocar(self.sons, "selecao")
+
+    def escolher_melhoria(self, indice):
+        if self.tempo_tela_melhoria < ATRASO_ESCOLHA or not 0 <= indice < len(self.opcoes_melhoria):
+            return
+        melhoria = self.opcoes_melhoria[indice]
+        self.nave.aplicar_melhoria(melhoria.chave)
+        if melhoria.chave == "reparo":
+            self.vidas = min(VIDAS_MAXIMAS, self.vidas + 1)
+        self.melhorias_pendentes -= 1
+        self.estado = ESTADO_JOGANDO
+        x, y = self.nave.x, self.nave.y
+        self.ondas.append(Onda(x, y, COR_PRIMARIA, raio_final=80, duracao=22))
+        self.criar_explosao(x, y, COR_PRIMARIA, 18)
+        tocar(self.sons, "item")
 
     def tingir_estrelas(self):
         for estrela in self.estrelas:
@@ -217,34 +284,130 @@ class Jogo:
             if evento.type == pygame.QUIT:
                 self.sair()
 
+            self.controles.processar_evento(evento)
             if evento.type == pygame.KEYDOWN:
-                if evento.key == pygame.K_ESCAPE:
-                    self.sair()
+                self.tecla(evento)
+            elif evento.type == pygame.MOUSEBUTTONDOWN and evento.button == 1:
+                self.clique(evento.pos)
+            elif evento.type == pygame.CONTROLLERBUTTONDOWN:
+                self.botao_controle(evento.button)
+            elif evento.type in (pygame.CONTROLLERDEVICEREMOVED, pygame.WINDOWFOCUSLOST):
+                self.pausar()  # controle desconectou ou a janela perdeu o foco
 
-                if evento.key == pygame.K_SPACE:
-                    self.acao_principal()
+            if self.estado == ESTADO_MELHORIA:
+                direcao = self.controles.navegacao_analogico(evento)
+                if direcao:
+                    self.mover_selecao(direcao)
 
-                if evento.key in (pygame.K_LCTRL, pygame.K_RCTRL):
-                    self.usar_dash()
+    def tecla(self, evento):
+        tecla = evento.key
+        if tecla == pygame.K_F11 or (tecla == pygame.K_RETURN and evento.mod & pygame.KMOD_ALT):
+            self.alternar_tela_cheia()
+            return
 
-                if evento.key in (pygame.K_q, pygame.K_TAB):
-                    self.trocar_arma()
+        if self.estado == ESTADO_MELHORIA:
+            if tecla in TECLAS_OPCAO:
+                self.escolher_melhoria(TECLAS_OPCAO[tecla])
+            elif tecla in (pygame.K_LEFT, pygame.K_a):
+                self.mover_selecao(-1)
+            elif tecla in (pygame.K_RIGHT, pygame.K_d):
+                self.mover_selecao(1)
+            elif tecla in TECLAS_CONFIRMAR:
+                self.escolher_melhoria(self.selecao_melhoria)
 
-            if evento.type == pygame.MOUSEBUTTONDOWN:
-                self.acao_principal()
+        elif self.estado == ESTADO_PAUSADO:
+            if tecla in (pygame.K_p, pygame.K_RETURN, pygame.K_KP_ENTER):
+                self.continuar()
+            elif tecla == pygame.K_ESCAPE:
+                self.voltar_ao_inicio()
 
-    def acao_principal(self):
+        elif self.estado == ESTADO_JOGANDO:
+            if tecla in (pygame.K_ESCAPE, pygame.K_p, pygame.K_RETURN, pygame.K_KP_ENTER):
+                self.pausar()
+            elif tecla == pygame.K_SPACE:
+                self.disparar()
+            elif tecla in (pygame.K_LCTRL, pygame.K_RCTRL):
+                self.usar_dash()
+            elif tecla in (pygame.K_q, pygame.K_TAB):
+                self.trocar_arma()
+
+        else:  # tela inicial / game over
+            if tecla == pygame.K_ESCAPE:
+                self.sair()
+            elif tecla in TECLAS_CONFIRMAR:
+                self.comecar()
+
+    def clique(self, posicao):
         if self.estado == ESTADO_JOGANDO:
             self.disparar()
-        else:
-            self.reiniciar()
-            self.estado = ESTADO_JOGANDO
+        elif self.estado == ESTADO_MELHORIA:
+            indice = interface.carta_em(posicao, len(self.opcoes_melhoria))
+            if indice is not None:
+                self.escolher_melhoria(indice)
+        elif self.estado in (ESTADO_INICIO, ESTADO_GAMEOVER):
+            self.comecar()
+
+    def botao_controle(self, botao):
+        if self.estado == ESTADO_MELHORIA:
+            if botao in BOTOES_MENU_ESQUERDA:
+                self.mover_selecao(-1)
+            elif botao in BOTOES_MENU_DIREITA:
+                self.mover_selecao(1)
+            elif botao == BOTAO_CONFIRMAR:
+                self.escolher_melhoria(self.selecao_melhoria)
+
+        elif self.estado == ESTADO_PAUSADO:
+            if botao in BOTOES_CONTINUAR:
+                self.continuar()
+            elif botao == BOTAO_MENU:
+                self.voltar_ao_inicio()
+            elif botao == BOTAO_TELA_CHEIA:
+                self.alternar_tela_cheia()
+
+        elif self.estado == ESTADO_JOGANDO:
+            if botao == BOTAO_PAUSA:
+                self.pausar()
+            if botao in BOTOES_TIRO:
+                self.disparar()
+            if botao in BOTOES_DASH:
+                self.usar_dash()
+            if botao in BOTOES_ARMA:
+                self.trocar_arma()
+
+        else:  # tela inicial / game over
+            if botao == BOTAO_TELA_CHEIA:
+                self.alternar_tela_cheia()
+            elif botao in BOTOES_INICIAR:
+                self.comecar()
+
+    def comecar(self):
+        self.reiniciar()
+        self.estado = ESTADO_JOGANDO
+
+    def pausar(self):
+        if self.estado == ESTADO_JOGANDO:
+            self.estado = ESTADO_PAUSADO
+            tocar(self.sons, "pausa")
+
+    def continuar(self):
+        self.estado = ESTADO_JOGANDO
+        tocar(self.sons, "pausa")
+
+    def voltar_ao_inicio(self):
+        """Abandona a partida (o recorde e salvo se tiver sido batido)."""
+        self.registrar_recorde()
+        self.reiniciar()
+        self.estado = ESTADO_INICIO
+
+    def alternar_tela_cheia(self):
+        pygame.display.toggle_fullscreen()
+        self.tela_cheia = not self.tela_cheia
 
     def disparar(self):
         if self.nave.pode_atirar():
-            tiro = self.nave.atirar()
-            self.tiros.append(tiro)
-            tocar(self.sons, "tiro_explosivo" if tiro.EXPLOSIVO else "tiro")
+            tiros = self.nave.atirar()
+            self.tiros.extend(tiros)
+            tocar(self.sons, "tiro_explosivo" if tiros[0].EXPLOSIVO else "tiro")
 
     def trocar_arma(self):
         if self.estado == ESTADO_JOGANDO:
@@ -263,6 +426,10 @@ class Jogo:
     # --------------------------------------------------------------- atualizar
     def atualizar(self):
         self.frame += 1
+        if self.estado == ESTADO_MELHORIA:
+            self.tempo_tela_melhoria += 1
+        if self.estado in (ESTADO_PAUSADO, ESTADO_MELHORIA):
+            return  # tudo congelado
         self.fundo.atualizar()
 
         for estrela in self.estrelas:
@@ -286,6 +453,10 @@ class Jogo:
             return
 
         self.ler_controles()
+        if self.chefe:  # ex.: gravidade da singularidade
+            ax, ay = self.chefe.forca_sobre(self.nave)
+            self.nave.vx += ax
+            self.nave.vy += ay
         self.nave.atualizar()
         self.particulas.extend(self.nave.emitir_rastro())
 
@@ -311,22 +482,28 @@ class Jogo:
         self.atualizar_chefe()
 
         self.checar_colisoes_tiro_meteoro()
+        self.checar_tiros_drones()
         self.checar_colisoes_tiro_chefe()
         self.checar_colisao_nave()
         self.checar_ataques_chefe()
 
         self.itens = [i for i in self.itens if not i.expirou() and not i.coletado]
 
+        if self.melhorias_pendentes > 0 and self.estado == ESTADO_JOGANDO:
+            self.abrir_melhoria()
+
     def ler_controles(self):
         teclas = pygame.key.get_pressed()
+        controles = self.controles
         esquerda = teclas[pygame.K_LEFT] or teclas[pygame.K_a]
         direita = teclas[pygame.K_RIGHT] or teclas[pygame.K_d]
-        self.nave.girar(direita - esquerda)  # 0 = soltou: o giro freia sozinho
-        if teclas[pygame.K_UP] or teclas[pygame.K_w]:
+        giro = max(-1.0, min(1.0, (direita - esquerda) + controles.giro()))
+        self.nave.girar(giro)  # 0 = soltou: o giro freia sozinho
+        if teclas[pygame.K_UP] or teclas[pygame.K_w] or controles.acelerando():
             self.nave.acelerar()
-        if teclas[pygame.K_DOWN] or teclas[pygame.K_s]:
+        if teclas[pygame.K_DOWN] or teclas[pygame.K_s] or controles.freando():
             self.nave.frear()
-        if teclas[pygame.K_SPACE]:
+        if teclas[pygame.K_SPACE] or controles.atirando():
             self.disparar()
 
     def gerar_asteroides(self):
@@ -372,9 +549,25 @@ class Jogo:
             elif self.chefe.bloqueia(tiro):
                 self.tiros.remove(tiro)
                 self.criar_explosao(tiro.x, tiro.y, self.chefe.COR, 3)
+                self.chefe.ao_bloquear(tiro)
             elif self.chefe.atinge(tiro):
                 self.tiros.remove(tiro)
                 self.danificar_chefe(1, tiro.x, tiro.y)
+
+    def checar_tiros_drones(self):
+        """Tiros da nave abatem os drones (projeteis destrutiveis) dos chefes."""
+        for tiro in self.tiros[:]:
+            for projetil in self.projeteis:
+                if projetil.destrutivel and tiro.colide_com(projetil):
+                    self.tiros.remove(tiro)
+                    self.projeteis.remove(projetil)
+                    projetil.abatido = True
+                    self.criar_explosao(projetil.x, projetil.y, projetil.cor, 10)
+                    self.somar_pontos(PONTOS_DRONE)
+                    tocar(self.sons, "explosao")
+                    if tiro.EXPLOSIVO:
+                        self.explodir(tiro.x, tiro.y)
+                    break
 
     def explodir(self, x, y):
         """Tiro explosivo: quebra asteroides, apaga projeteis e fere o chefe dentro da area."""
@@ -391,6 +584,7 @@ class Jogo:
             self.destruir_asteroide(meteoro)
         for projetil in [p for p in self.projeteis if na_area(p)]:
             self.projeteis.remove(projetil)
+            projetil.abatido = True
             self.criar_explosao(projetil.x, projetil.y, projetil.cor, 2)
         if self.chefe and na_area(self.chefe):
             self.danificar_chefe(DANO_EXPLOSAO_CHEFE, x, y)
@@ -404,6 +598,7 @@ class Jogo:
             if not nave.colide_com(projetil):
                 continue
             self.projeteis.remove(projetil)
+            projetil.abatido = True
             if nave.tempo_escudo > 0:
                 self.ondas.append(Onda(projetil.x, projetil.y, COR_ITEM, raio_final=18, duracao=12))
                 nave.impacto_no_escudo()
@@ -412,7 +607,17 @@ class Jogo:
                 return
 
         chefe = self.chefe
-        if not chefe or not chefe.atinge(nave):
+        if not chefe:
+            return
+        if chefe.ataque_continuo(nave):  # laser: o escudo segura, sem escudo custa uma vida
+            if nave.tempo_escudo > 0:
+                if self.frame % 4 == 0:
+                    self.criar_explosao(nave.x, nave.y, chefe.COR, 3)
+                    nave.impacto_no_escudo()
+            elif nave.tempo_invencivel <= 0:
+                self.perder_vida()
+                return
+        if not chefe.atinge(nave):
             return
         if nave.tempo_escudo > 0:
             # o escudo empurra a nave para fora e causa dano no chefe
@@ -423,11 +628,13 @@ class Jogo:
             self.perder_vida()
 
     def empurrar_nave(self, chefe):
-        dx, dy = self.nave.x - chefe.x, self.nave.y - chefe.y
+        # empurra para fora da parte tocada (corpo, satelite, gemeo...)
+        cx, cy, raio = chefe.ponto_contato(self.nave)
+        dx, dy = self.nave.x - cx, self.nave.y - cy
         distancia = max(1.0, (dx * dx + dy * dy) ** 0.5)
         ux, uy = dx / distancia, dy / distancia
-        afastamento = chefe.raio + self.nave.raio + 4
-        self.nave.x, self.nave.y = chefe.x + ux * afastamento, chefe.y + uy * afastamento
+        afastamento = raio + self.nave.raio + 4
+        self.nave.x, self.nave.y = cx + ux * afastamento, cy + uy * afastamento
         self.nave.vx, self.nave.vy = ux * 7, uy * 7
 
     def somar_pontos(self, pontos):
@@ -453,7 +660,7 @@ class Jogo:
         for item in self.itens:
             if not item.coletado and self.nave.colide_com(item):
                 item.coletado = True
-                self.nave.ativar_escudo(DURACAO_ESCUDO)
+                self.nave.ativar_escudo(DURACAO_ESCUDO + self.nave.bonus_escudo)
                 self.efeito_pegar_escudo()
                 tocar(self.sons, "item")
 
@@ -510,6 +717,9 @@ class Jogo:
         self.tiros.clear()
         self.itens.clear()
         self.projeteis.clear()
+        self.registrar_recorde()
+
+    def registrar_recorde(self):
         if self.pontuacao > self.recorde:
             self.recorde = self.pontuacao
             self.novo_recorde = True
@@ -537,16 +747,25 @@ class Jogo:
         for onda in self.ondas:
             onda.desenhar(cena)
 
-        if self.estado == ESTADO_JOGANDO:
+        if self.estado in (ESTADO_JOGANDO, ESTADO_PAUSADO, ESTADO_MELHORIA):
             self.nave.desenhar(cena)
 
         self.tela.fill(self.fundo.galaxia.cor_fundo)
         self.tela.blit(cena, self.deslocamento_tremor())
 
         if self.estado == ESTADO_INICIO:
-            interface.desenhar_tela_inicio(self.tela, self.fontes, self.recorde, self.frame)
+            interface.desenhar_tela_inicio(self.tela, self.fontes, self.recorde, self.frame, self.controles.nome())
         else:
             self.desenhar_hud()
+            if self.estado == ESTADO_PAUSADO:
+                interface.desenhar_tela_pausa(
+                    self.tela, self.fontes, self.nave.melhorias, self.tela_cheia, self.frame
+                )
+            if self.estado == ESTADO_MELHORIA:
+                interface.desenhar_tela_melhoria(
+                    self.tela, self.fontes, self.nivel, self.opcoes_melhoria, self.nave.melhorias,
+                    self.selecao_melhoria, self.tempo_tela_melhoria >= ATRASO_ESCOLHA,
+                )
             if self.estado == ESTADO_GAMEOVER:
                 interface.desenhar_tela_gameover(
                     self.tela,
@@ -580,7 +799,7 @@ class Jogo:
             setor,
             galaxia.nome,
         )
-        if self.estado != ESTADO_JOGANDO:
+        if self.estado not in (ESTADO_JOGANDO, ESTADO_PAUSADO, ESTADO_MELHORIA):
             return
         interface.desenhar_aviso(
             self.tela,
@@ -607,7 +826,7 @@ class Jogo:
         nave = self.nave
         interface.desenhar_arma(
             self.tela, self.fontes, nave.arma, nave.arma == ARMA_EXPLOSIVA,
-            nave.municao_explosiva, MUNICAO_EXPLOSIVA, nave.fracao_recarga,
+            nave.municao_explosiva, nave.municao_max, nave.fracao_recarga,
         )
         if self.chefe:
             interface.desenhar_barra_chefe(

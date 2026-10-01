@@ -7,8 +7,12 @@ Controles:
     SETAS / WASD       -> movem a nave em qualquer direcao
     ESPACO              -> atira
     CONTROL             -> impulso
-    ESC                 -> sai do jogo
+    Q / TAB             -> troca de arma
+    P / ENTER / ESC     -> pausa (no pause, ESC volta ao menu inicial)
+    F11 / ALT+ENTER     -> tela cheia
+    ESC (no menu)       -> sai do jogo
     Na tela inicial / game over -> ESPACO ou clique para (re)comecar
+    Controle (USB/bluetooth)    -> veja spacemax/controle.py
 
 Requisitos: pip install -r requirements.txt (pygame ou pygame-ce)
 Executar:   python main.py

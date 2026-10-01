@@ -1,8 +1,9 @@
 """
 Chefes: um inimigo grande a cada NIVEIS_POR_CHEFE niveis.
 
-Cada chefe tem forma, cor e padrao de ataque proprios. A ordem segue a lista
-CHEFES; depois do ultimo ela recomeca com os chefes mais fortes (`ciclo`).
+Cada chefe tem forma, cor e padrao de ataque proprios. Aqui ficam a base e os
+chefes 01-09; os chefes 10-20 e a ordem de aparicao (CHEFES) ficam em
+chefes_elite.py. Depois do ultimo a lista recomeca mais forte (`ciclo`).
 """
 
 import math
@@ -51,6 +52,7 @@ class Chefe(EntidadeColidivel):
         self.angulo: float = 0.0
         self.alvo: tuple[float, float] = (LARGURA / 2, ALTURA / 2)
         self.recargas: dict[str, int] = {}
+        self.som_pendente: str | None = None  # o jogo toca e limpa a cada frame
 
     # ------------------------------------------------------------------ estado
     @property
@@ -80,7 +82,8 @@ class Chefe(EntidadeColidivel):
     def definir_alvo(self, x, y):
         self.alvo = (x, y)
 
-    def receber_dano(self, quantidade=1) -> bool:
+    def receber_dano(self, quantidade=1, x=None, y=None) -> bool:
+        """(x, y): onde o golpe acertou (chefes com partes usam para saber qual parte)."""
         if self.entrando or self.morto():
             return False
         self.vida = max(0, self.vida - quantidade)
@@ -94,6 +97,21 @@ class Chefe(EntidadeColidivel):
     def bloqueia(self, tiro) -> bool:
         """Partes que absorvem tiros sem levar dano (escudos, satelites...)."""
         return False
+
+    def ponto_contato(self, entidade) -> tuple[float, float, float]:
+        """(x, y, raio) da parte do chefe que tocou `entidade` (para empurrar a nave)."""
+        return self.x, self.y, self.raio
+
+    def ataque_continuo(self, nave) -> bool:
+        """Ataques que nao sao projeteis (ex.: laser) atingindo a nave neste frame."""
+        return False
+
+    def ao_bloquear(self, tiro):
+        """Chamado quando `bloqueia(tiro)` segurou um tiro da nave (ex.: espelho reflete)."""
+
+    def forca_sobre(self, nave) -> tuple[float, float]:
+        """Aceleracao extra aplicada na nave a cada frame (ex.: gravidade)."""
+        return 0.0, 0.0
 
     # ------------------------------------------------------------------- frame
     def atualizar(self):
@@ -343,6 +361,12 @@ class Orbita(Chefe):
             for sx, sy in self.satelites()
         )
 
+    def ponto_contato(self, entidade):
+        for sx, sy in self.satelites():
+            if math.hypot(entidade.x - sx, entidade.y - sy) < self.RAIO_SATELITE + entidade.raio:
+                return sx, sy, self.RAIO_SATELITE
+        return super().ponto_contato(entidade)
+
     def padrao_ataque(self):
         novos = []
         # espiral em rajadas de 3 s com 1 s de pausa para respirar
@@ -535,5 +559,355 @@ class Nucleo(Chefe):
             pygame.draw.arc(tela, cor, rect, inicio, inicio + math.radians(abertura), 2)
 
 
-# ordem de aparicao: nivel 5, 10, 15, 20, 25 (depois recomeca, mais forte)
-CHEFES = [Sentinela, Arpao, Orbita, Prisma, Nucleo]
+# ---------------------------------------------------------------------------
+# 06 · GEMEOS: dois triangulos que orbitam um centro vazio; tiros alternados
+# ---------------------------------------------------------------------------
+class Gemeos(Chefe):
+    NOME = "GEMEOS"
+    COR = (255, 240, 120)
+    RAIO = 50  # area do conjunto (explosoes e marcadores); o dano e nos gemeos
+    VIDA_BASE = 60
+    RAIO_GEMEO = 20
+    TRIANGULO = [(0, -22), (19, 11), (-19, 11)]
+
+    def __init__(self, ciclo: int = 0):
+        super().__init__(ciclo)
+        self.giro: float = 0.0
+        self.separacao: float = 60.0
+        self.vez: int = 0  # qual gemeo atira agora
+
+    def gemeos(self) -> list[tuple[float, float]]:
+        a = math.radians(self.giro)
+        dx, dy = math.cos(a) * self.separacao, math.sin(a) * self.separacao
+        return [(self.x + dx, self.y + dy), (self.x - dx, self.y - dy)]
+
+    def mover_padrao(self):
+        t = self.tempo_ativo
+        self.x = LARGURA / 2 + math.sin(t * 0.009) * 250
+        self.y = POSICAO_INICIAL_Y + math.sin(t * 0.021) * 35
+        self.giro += 2.6 if self.furioso else 1.6
+        # os gemeos se afastam e se aproximam como uma tesoura
+        self.separacao = 62 + math.sin(t * 0.03) * (40 if self.furioso else 28)
+
+    def _gemeo_tocado(self, entidade):
+        for gx, gy in self.gemeos():
+            if math.hypot(entidade.x - gx, entidade.y - gy) < self.RAIO_GEMEO + entidade.raio:
+                return gx, gy
+        return None
+
+    def atinge(self, entidade) -> bool:
+        return not self.entrando and self._gemeo_tocado(entidade) is not None
+
+    def ponto_contato(self, entidade):
+        gemeo = self._gemeo_tocado(entidade)
+        if gemeo:
+            return gemeo[0], gemeo[1], self.RAIO_GEMEO
+        return super().ponto_contato(entidade)
+
+    def padrao_ataque(self):
+        novos = []
+        if self.pronto("tiro", 34):
+            gx, gy = self.gemeos()[self.vez]
+            self.vez = 1 - self.vez
+            desvios = (-9, 0, 9) if self.furioso else (0,)
+            alvo = self.angulo_ate_alvo((gx, gy))
+            novos += [self.disparar(alvo + d, 4.0, origem=(gx, gy)) for d in desvios]
+        if self.pronto("cruz", 140):
+            for gx, gy in self.gemeos():
+                novos += [self.disparar(self.giro + 45 + 90 * i, 3.0, origem=(gx, gy)) for i in range(4)]
+        return novos
+
+    def desenhar(self, tela):
+        cor = self.cor_atual()
+        (ax, ay), (bx, by) = self.gemeos()
+
+        # elo tracejado entre os dois
+        for i in range(0, 10, 2):
+            p0, p1 = i / 10, (i + 1) / 10
+            pygame.draw.aaline(
+                tela, self.cor_atual(0.35),
+                (ax + (bx - ax) * p0, ay + (by - ay) * p0), (ax + (bx - ax) * p1, ay + (by - ay) * p1),
+            )
+        grafico.circulo(tela, self.cor_atual(0.5), (self.x, self.y), 3)
+
+        carga = self.carga("cruz", 24)
+        for (gx, gy), sentido in (((ax, ay), 1), ((bx, by), -1)):
+            grafico.contorno(tela, cor, grafico.rotacionar(self.TRIANGULO, self.giro * 2 * sentido, gx, gy))
+            if carga > 0 and not self.entrando:
+                grafico.circulo(tela, grafico.misturar(self.COR, carga), (gx, gy), 26 - 10 * carga)
+        self.desenhar_marcadores(tela)
+
+
+# ---------------------------------------------------------------------------
+# 07 · ESPECTRO: some, reaparece em outro ponto e solta um anel (intocavel oculto)
+# ---------------------------------------------------------------------------
+class Espectro(Chefe):
+    NOME = "ESPECTRO"
+    COR = (120, 140, 255)
+    RAIO = 28
+    VIDA_BASE = 65
+    FORMA = [(0, -32), (24, -14), (22, 22), (8, 12), (0, 26), (-8, 12), (-22, 22), (-24, -14)]
+    VISIVEL, SUMINDO, OCULTO, SURGINDO = range(4)
+    DURACAO_FADE = 30
+    DURACAO_OCULTO = 40
+
+    def __init__(self, ciclo: int = 0):
+        super().__init__(ciclo)
+        self.fase: int = self.VISIVEL
+        self.tempo_fase: int = self.ritmo(150)
+        self.ancora: tuple[float, float] = (LARGURA / 2, POSICAO_INICIAL_Y)
+        self.destino: tuple[float, float] = self.ancora
+        self.anel_pendente: bool = False
+        self.minas_pendentes: bool = False
+
+    @property
+    def opacidade(self) -> float:
+        if self.fase == self.SUMINDO:
+            return self.tempo_fase / self.DURACAO_FADE
+        if self.fase == self.OCULTO:
+            return 0.0
+        if self.fase == self.SURGINDO:
+            return 1 - self.tempo_fase / self.DURACAO_FADE
+        return 1.0
+
+    @property
+    def tangivel(self) -> bool:
+        return self.fase == self.VISIVEL
+
+    def receber_dano(self, quantidade=1, x=None, y=None) -> bool:
+        return self.tangivel and super().receber_dano(quantidade, x, y)
+
+    def atinge(self, entidade) -> bool:
+        return self.tangivel and super().atinge(entidade)
+
+    def sortear_destino(self):
+        """Ponto longe da nave, para nao reaparecer em cima dela."""
+        for _ in range(12):
+            destino = (random.uniform(90, LARGURA - 90), random.uniform(90, ALTURA * 0.6))
+            if math.hypot(destino[0] - self.alvo[0], destino[1] - self.alvo[1]) > 260:
+                break
+        self.destino = destino
+
+    def mover_padrao(self):
+        self.tempo_fase -= 1
+        if self.fase == self.VISIVEL:
+            t = self.tempo_ativo
+            self.x = self.ancora[0] + math.sin(t * 0.05) * 18
+            self.y = self.ancora[1] + math.sin(t * 0.08) * 10
+            if self.tempo_fase <= 0:
+                self.fase, self.tempo_fase = self.SUMINDO, self.DURACAO_FADE
+                self.minas_pendentes = self.furioso
+                self.som_pendente = "teleporte"
+        elif self.fase == self.SUMINDO:
+            if self.tempo_fase <= 0:
+                self.fase, self.tempo_fase = self.OCULTO, self.DURACAO_OCULTO
+                self.sortear_destino()
+        elif self.fase == self.OCULTO:
+            if self.tempo_fase <= 0:
+                self.x, self.y = self.ancora = self.destino
+                self.fase, self.tempo_fase = self.SURGINDO, self.DURACAO_FADE
+        elif self.tempo_fase <= 0:  # SURGINDO
+            self.fase, self.tempo_fase = self.VISIVEL, self.ritmo(150)
+            self.anel_pendente = True
+        self.angulo = math.sin(self.tempo * 0.04) * 8
+
+    def padrao_ataque(self):
+        novos = []
+        if self.anel_pendente:
+            self.anel_pendente = False
+            novos += self.rajada_circular(14 if self.furioso else 10, 2.8, random.uniform(0, 36))
+        if self.minas_pendentes:
+            # furioso: deixa minas no lugar de onde sumiu
+            self.minas_pendentes = False
+            novos += [self.disparar(a, 0.6, detonacao=80, fragmentos=8) for a in (0, 180)]
+        if self.tangivel and self.pronto("mira", 45):
+            alvo = self.angulo_ate_alvo()
+            novos += [self.disparar(alvo + d, 4.4) for d in (-6, 6)]
+        return novos
+
+    def desenhar(self, tela):
+        # onde vai reaparecer: circulo que fecha ate o ponto
+        if self.fase in (self.OCULTO, self.SURGINDO):
+            p = 1 - self.tempo_fase / self.DURACAO_OCULTO if self.fase == self.OCULTO else 1.0
+            grafico.circulo(tela, grafico.misturar(self.COR, 0.25 + 0.4 * p), self.destino, 70 - 40 * p)
+
+        opacidade = self.opacidade
+        if opacidade <= 0:
+            return
+        cor = self.cor_atual(opacidade)
+        grafico.contorno(tela, cor, grafico.rotacionar(self.FORMA, self.angulo, self.x, self.y), brilho=self.tangivel)
+
+        # olhos que acompanham a nave
+        dx, dy = self.alvo[0] - self.x, self.alvo[1] - self.y
+        distancia = max(1.0, math.hypot(dx, dy))
+        ox, oy = dx / distancia * 3, dy / distancia * 3
+        for lado in (-1, 1):
+            grafico.circulo(tela, cor, (self.x + lado * 9 + ox, self.y - 6 + oy), 3, 0)
+        if self.tangivel:
+            self.desenhar_marcadores(tela)
+
+
+# ---------------------------------------------------------------------------
+# 08 · VESPA: voo nervoso; misseis teleguiados e ferrao mirado
+# ---------------------------------------------------------------------------
+class Vespa(Chefe):
+    NOME = "VESPA"
+    COR = (170, 255, 60)
+    RAIO = 26
+    VIDA_BASE = 70
+    CORPO = [(0, -26), (12, -8), (10, 16), (0, 30), (-10, 16), (-12, -8)]
+    ASA = [(6, -6), (34, -20), (38, -2), (10, 6)]
+    FERRAO = (0, 30)
+
+    def __init__(self, ciclo: int = 0):
+        super().__init__(ciclo)
+        self.destino: tuple[float, float] = (LARGURA / 2, POSICAO_INICIAL_Y)
+
+    def mover_padrao(self):
+        if self.pronto("destino", 70):
+            self.destino = (random.uniform(110, LARGURA - 110), random.uniform(80, ALTURA * 0.45))
+        suavidade = 0.06 if self.furioso else 0.045
+        vx = (self.destino[0] - self.x) * suavidade
+        self.x += vx
+        self.y += (self.destino[1] - self.y) * suavidade
+        self.angulo = -max(-25.0, min(25.0, vx * 4))  # inclina na direcao do voo
+
+    def ponta_ferrao(self):
+        (px, py), = grafico.rotacionar([self.FERRAO], self.angulo, self.x, self.y)
+        return px, py
+
+    def padrao_ataque(self):
+        novos = []
+        if self.pronto("misseis", 140):
+            angulos = (200, 270, 340) if self.furioso else (210, 330)
+            novos += [self.disparar(a, 3.2, guiado=110) for a in angulos]
+        if self.pronto("ferrao", 50):
+            origem = self.ponta_ferrao()
+            novos.append(self.disparar(self.angulo_ate_alvo(origem), 5.0, origem=origem))
+        return novos
+
+    def desenhar(self, tela):
+        cor = self.cor_atual()
+        bater = math.sin(self.tempo * 0.7) * 0.35  # asas batendo
+        for lado in (-1, 1):
+            asa = [(lado * x, y * (1 + bater)) for x, y in self.ASA]
+            grafico.contorno(
+                tela, self.cor_atual(0.5), grafico.rotacionar(asa, self.angulo, self.x, self.y), brilho=False
+            )
+        grafico.contorno(tela, cor, grafico.rotacionar(self.CORPO, self.angulo, self.x, self.y))
+        # listras do abdome
+        for y in (2, 10, 18):
+            a, b = grafico.rotacionar([(-9, y), (9, y)], self.angulo, self.x, self.y)
+            pygame.draw.aaline(tela, self.cor_atual(0.6), a, b)
+
+        carga = self.carga("misseis", 30)
+        if carga > 0 and not self.entrando:
+            grafico.circulo(tela, grafico.misturar(self.COR, carga), (self.x, self.y), 40 - 12 * carga)
+        self.desenhar_marcadores(tela)
+
+
+# ---------------------------------------------------------------------------
+# 09 · FAROL: octogono com laser que varre a tela (avisa antes com uma mira)
+# ---------------------------------------------------------------------------
+class Farol(Chefe):
+    NOME = "FAROL"
+    COR = (235, 240, 255)
+    RAIO = 32
+    VIDA_BASE = 80
+    OCTOGONO = _poligono_regular(8, 32, 22.5)
+    INTERNO = _poligono_regular(8, 16, 22.5)
+    DESCANSO, CARREGANDO, DISPARANDO = range(3)
+    DURACAO_CARGA = 70
+    DURACAO_FEIXE = 100
+    ESPESSURA_FEIXE = 8  # meia largura usada na colisao
+    ALCANCE_FEIXE = 1300
+
+    def __init__(self, ciclo: int = 0):
+        super().__init__(ciclo)
+        self.fase: int = self.DESCANSO
+        self.tempo_fase: int = self.ritmo(90)
+        self.angulo_feixe: float = 90.0
+        self.sentido: int = 1
+        self.destino: tuple[float, float] = (LARGURA / 2, POSICAO_INICIAL_Y)
+        self.anel_pendente: bool = False
+
+    def feixes(self) -> list[float]:
+        if self.furioso:
+            return [self.angulo_feixe, self.angulo_feixe + 180]
+        return [self.angulo_feixe]
+
+    def mover_padrao(self):
+        self.tempo_fase -= 1
+        if self.fase == self.DESCANSO:
+            self.x += (self.destino[0] - self.x) * 0.03
+            self.y += (self.destino[1] - self.y) * 0.03
+            self.angulo += 1
+            if self.tempo_fase <= 0:
+                # o feixe comeca ao lado da nave e varre passando por ela
+                self.sentido = random.choice((-1, 1))
+                self.angulo_feixe = self.angulo_ate_alvo() - self.sentido * 40
+                self.fase, self.tempo_fase = self.CARREGANDO, self.DURACAO_CARGA
+        elif self.fase == self.CARREGANDO:
+            self.angulo += 4
+            if self.tempo_fase <= 0:
+                self.fase, self.tempo_fase = self.DISPARANDO, self.DURACAO_FEIXE
+                self.som_pendente = "laser"
+        else:  # DISPARANDO
+            self.angulo_feixe += self.sentido * (1.4 if self.furioso else 1.1)
+            if self.tempo_fase <= 0:
+                self.fase, self.tempo_fase = self.DESCANSO, self.ritmo(110)
+                self.destino = (random.uniform(160, LARGURA - 160), random.uniform(110, ALTURA * 0.5))
+                self.anel_pendente = True
+
+    def ataque_continuo(self, nave) -> bool:
+        if self.entrando or self.fase != self.DISPARANDO:
+            return False
+        vx, vy = nave.x - self.x, nave.y - self.y
+        for angulo in self.feixes():
+            dx, dy = math.cos(math.radians(angulo)), math.sin(math.radians(angulo))
+            if vx * dx + vy * dy > 0 and abs(vx * dy - vy * dx) < self.ESPESSURA_FEIXE + nave.raio:
+                return True
+        return False
+
+    def padrao_ataque(self):
+        novos = []
+        if self.anel_pendente:
+            self.anel_pendente = False
+            novos += self.rajada_circular(14 if self.furioso else 10, 2.6, self.angulo)
+        if self.fase == self.DESCANSO and self.pronto("tiro", 40):
+            novos.append(self.disparar(self.angulo_ate_alvo(), 4.2))
+        return novos
+
+    def desenhar(self, tela):
+        if not self.entrando:
+            for angulo in self.feixes():
+                self.desenhar_feixe(tela, angulo)
+        cor = self.cor_atual()
+        grafico.contorno(tela, cor, grafico.rotacionar(self.OCTOGONO, self.angulo * 0.5, self.x, self.y))
+        grafico.contorno(
+            tela, self.cor_atual(0.6), grafico.rotacionar(self.INTERNO, -self.angulo, self.x, self.y), brilho=False
+        )
+        lampada = 5 + (4 if self.fase != self.DESCANSO else 0)
+        grafico.circulo(tela, cor, (self.x, self.y), lampada, 0)
+        self.desenhar_marcadores(tela)
+
+    def desenhar_feixe(self, tela, angulo):
+        dx, dy = math.cos(math.radians(angulo)), math.sin(math.radians(angulo))
+        inicio = (self.x + dx * (self.raio + 4), self.y + dy * (self.raio + 4))
+        fim = (self.x + dx * self.ALCANCE_FEIXE, self.y + dy * self.ALCANCE_FEIXE)
+        if self.fase == self.CARREGANDO:
+            # mira tracejada que fica mais forte perto do disparo
+            carga = 1 - self.tempo_fase / self.DURACAO_CARGA
+            cor = grafico.misturar(self.COR, 0.2 + 0.6 * carga)
+            for d in range(self.raio + 4, self.ALCANCE_FEIXE, 24):
+                pygame.draw.aaline(
+                    tela, cor, (self.x + dx * d, self.y + dy * d), (self.x + dx * (d + 12), self.y + dy * (d + 12))
+                )
+        elif self.fase == self.DISPARANDO:
+            pulso = 1 + 0.25 * math.sin(self.tempo * 0.8)
+            pygame.draw.line(
+                tela, grafico.misturar(self.COR, 0.25), inicio, fim, int(self.ESPESSURA_FEIXE * 2.6 * pulso)
+            )
+            pygame.draw.line(tela, grafico.misturar(self.COR, 0.7), inicio, fim, self.ESPESSURA_FEIXE)
+            pygame.draw.aaline(tela, (255, 255, 255), inicio, fim)
+

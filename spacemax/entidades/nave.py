@@ -9,6 +9,7 @@ from .. import grafico
 from ..config import (
     ACELERACAO_NAVE,
     ACELERACAO_ROTACAO,
+    ALCANCE_TIRO,
     ARMA_EXPLOSIVA,
     ARMA_NORMAL,
     ALTURA,
@@ -20,6 +21,7 @@ from ..config import (
     COR_ITEM,
     COR_PRIMARIA,
     DURACAO_DASH,
+    FPS,
     FREIO_NAVE,
     IMPULSO_DASH,
     LARGURA,
@@ -63,13 +65,53 @@ class Nave(EntidadeColidivel):
         self.arma: str = ARMA_NORMAL
         self.municao_explosiva: int = MUNICAO_EXPLOSIVA
         self.tempo_recarga_explosiva: int = 0  # conta enquanto falta municao
+        self.melhorias: dict[str, int] = {}  # chave da melhoria -> nivel
+
+    # --------------------------------------------------------------- melhorias
+    def nivel_melhoria(self, chave) -> int:
+        return self.melhorias.get(chave, 0)
+
+    def aplicar_melhoria(self, chave):
+        self.melhorias[chave] = self.nivel_melhoria(chave) + 1
+        if chave == "arsenal":
+            self.municao_explosiva += 1
+
+    @property
+    def cooldown_tiro(self) -> int:
+        return max(3, round(COOLDOWN_TIRO * 0.85 ** self.nivel_melhoria("cadencia")))
+
+    @property
+    def alcance_tiro(self) -> int:
+        return int(ALCANCE_TIRO * (1 + 0.25 * self.nivel_melhoria("alcance")))
+
+    @property
+    def municao_max(self) -> int:
+        return MUNICAO_EXPLOSIVA + self.nivel_melhoria("arsenal")
+
+    @property
+    def recarga_explosiva(self) -> int:
+        return int(RECARGA_EXPLOSIVA * 0.75 ** self.nivel_melhoria("recarga"))
+
+    @property
+    def fator_motor(self) -> float:
+        return 1 + 0.12 * self.nivel_melhoria("motor")
+
+    @property
+    def fator_giro(self) -> float:
+        return 1 + 0.15 * self.nivel_melhoria("manobra")
+
+    @property
+    def bonus_escudo(self) -> int:
+        return 2 * FPS * self.nivel_melhoria("escudo")
 
     # ----------------------------------------------------------------- controle
     def girar(self, direcao):
-        """direcao: -1 esquerda, 1 direita, 0 soltou (o giro freia sozinho)."""
+        """direcao: -1 esquerda, 1 direita, 0 soltou (o giro freia sozinho).
+
+        Valores intermediarios (analogico do controle) giram mais devagar."""
         if direcao:
-            self.velocidade_angular += direcao * ACELERACAO_ROTACAO
-            limite = ROTACAO_MAX_NAVE
+            self.velocidade_angular += direcao * ACELERACAO_ROTACAO * self.fator_giro
+            limite = ROTACAO_MAX_NAVE * self.fator_giro * min(1.0, abs(direcao))
             self.velocidade_angular = max(-limite, min(limite, self.velocidade_angular))
         else:
             self.velocidade_angular *= AMORTECIMENTO_ROTACAO
@@ -100,9 +142,9 @@ class Nave(EntidadeColidivel):
         if velocidade > VELOCIDADE_MAX_DASH:
             # teto rigido: nem impulsos em sequencia passam daqui
             fator = VELOCIDADE_MAX_DASH / velocidade
-        elif self.tempo_dash <= 0 and velocidade > VELOCIDADE_MAX_NAVE:
+        elif self.tempo_dash <= 0 and velocidade > VELOCIDADE_MAX_NAVE * self.fator_motor:
             # apos o impulso, volta ao limite normal suavemente
-            fator = max(VELOCIDADE_MAX_NAVE / velocidade, 0.97)
+            fator = max(VELOCIDADE_MAX_NAVE * self.fator_motor / velocidade, 0.97)
         else:
             return
         self.vx *= fator
@@ -114,25 +156,30 @@ class Nave(EntidadeColidivel):
     @property
     def fracao_recarga(self) -> float:
         """0..1: progresso da recarga dos tiros explosivos (1 = cheio)."""
-        if self.municao_explosiva >= MUNICAO_EXPLOSIVA:
+        if self.municao_explosiva >= self.municao_max:
             return 1.0
-        return 1 - self.tempo_recarga_explosiva / RECARGA_EXPLOSIVA
+        return 1 - self.tempo_recarga_explosiva / self.recarga_explosiva
 
     def pode_atirar(self):
         if self.arma == ARMA_EXPLOSIVA and self.municao_explosiva <= 0:
             return False
         return self.cooldown_atual <= 0
 
-    def atirar(self):
+    def atirar(self) -> list[Tiro]:
         (bico_x, bico_y), = grafico.rotacionar([PONTA_NARIZ], self.angulo, self.x, self.y)
         if self.arma == ARMA_EXPLOSIVA:
             self.cooldown_atual = COOLDOWN_TIRO_EXPLOSIVO
-            if self.municao_explosiva == MUNICAO_EXPLOSIVA:
-                self.tempo_recarga_explosiva = RECARGA_EXPLOSIVA
+            if self.municao_explosiva >= self.municao_max:
+                self.tempo_recarga_explosiva = self.recarga_explosiva
             self.municao_explosiva -= 1
-            return TiroExplosivo(bico_x, bico_y, self.angulo, self.vx, self.vy)
-        self.cooldown_atual = COOLDOWN_TIRO
-        return Tiro(bico_x, bico_y, self.angulo, self.vx, self.vy)
+            return [TiroExplosivo(bico_x, bico_y, self.angulo, self.vx, self.vy)]
+        self.cooldown_atual = self.cooldown_tiro
+        # tiro multiplo: leque com 8 graus entre os tiros
+        quantidade = 1 + self.nivel_melhoria("multiplo")
+        return [
+            Tiro(bico_x, bico_y, self.angulo + (i - (quantidade - 1) / 2) * 8, self.vx, self.vy, self.alcance_tiro)
+            for i in range(quantidade)
+        ]
 
     # ---------------------------------------------------------------- protecao
     @property
@@ -163,7 +210,7 @@ class Nave(EntidadeColidivel):
         if self.propulsor_ligado:
             self.potencia = min(1.0, self.potencia + RAMPA_PROPULSOR)
             dx, dy = self.direcao()
-            empuxo = ACELERACAO_NAVE * (0.45 + 0.55 * self.potencia)
+            empuxo = ACELERACAO_NAVE * self.fator_motor * (0.45 + 0.55 * self.potencia)
             self.vx += dx * empuxo
             self.vy += dy * empuxo
         else:
@@ -175,11 +222,11 @@ class Nave(EntidadeColidivel):
         self.limitar_velocidade()
         self.mover()
 
-        # os 3 tiros explosivos voltam juntos 30 s apos o primeiro disparo
-        if self.municao_explosiva < MUNICAO_EXPLOSIVA:
+        # os tiros explosivos voltam juntos 30 s apos o primeiro disparo
+        if self.municao_explosiva < self.municao_max:
             self.tempo_recarga_explosiva -= 1
             if self.tempo_recarga_explosiva <= 0:
-                self.municao_explosiva = MUNICAO_EXPLOSIVA
+                self.municao_explosiva = self.municao_max
 
         for atributo in ("cooldown_atual", "tempo_dash",
                          "tempo_escudo", "tempo_invencivel", "clarao"):

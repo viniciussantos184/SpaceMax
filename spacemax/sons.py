@@ -49,6 +49,13 @@ def criar_sons():
             "tiro_explosivo": gerar_som(240, 0.12, 0.2, "quadrada"),
             "explosao_grande": gerar_som(60, 0.45, 0.32, "ruido"),
             "troca_arma": gerar_som(1000, 0.05, 0.12, "senoide"),
+            "laser": gerar_som(150, 0.5, 0.2, "quadrada"),
+            "teleporte": gerar_som(520, 0.22, 0.15, "senoide"),
+            "pausa": gerar_som(440, 0.08, 0.15, "senoide"),
+            "melhoria": gerar_som(880, 0.25, 0.2, "senoide"),
+            "selecao": gerar_som(600, 0.03, 0.1, "quadrada"),
+            "trovao": gerar_som(55, 0.4, 0.3, "ruido"),
+            "reflexo": gerar_som(1400, 0.05, 0.1, "senoide"),
         }
     except pygame.error:
         return None

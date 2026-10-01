@@ -24,14 +24,20 @@ class Tiro(EntidadeColidivel):
     EXPLOSIVO = False
 
     def __init__(
-        self, x: float, y: float, angulo: float, vx_nave: float = 0.0, vy_nave: float = 0.0
+        self,
+        x: float,
+        y: float,
+        angulo: float,
+        vx_nave: float = 0.0,
+        vy_nave: float = 0.0,
+        alcance: int | None = None,
     ):
         rad = math.radians(angulo)
         # herda a velocidade da nave, como no Asteroids classico
         vx = math.sin(rad) * self.VELOCIDADE + vx_nave
         vy = -math.cos(rad) * self.VELOCIDADE + vy_nave
         super().__init__(x, y, self.RAIO, vx, vy)
-        self.vida: int = self.ALCANCE
+        self.vida: int = alcance or self.ALCANCE
 
     def atualizar(self):
         self.mover()

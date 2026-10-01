@@ -15,7 +15,25 @@ viaje por galaxias diferentes a cada 3 niveis.
 - **ESPACO**: atira na direcao em que a nave aponta
 - **Q ou TAB**: troca entre a arma normal e a explosiva
 - **ESC**: sai do jogo
+- **P, ENTER ou ESC**: pausa (no pause, ESC volta ao menu inicial)
+- **F11 ou ALT+ENTER**: tela cheia
 - Na tela inicial ou de Game Over, pressione ESPACO/clique para (re)comecar
+
+### Controle (USB ou bluetooth)
+
+Qualquer controle reconhecido pelo SDL (Xbox, PlayStation, Switch Pro, 8BitDo...)
+funciona, inclusive conectado com o jogo ja aberto:
+
+- **Analogico esquerdo / direcional**: gira; para cima acelera, para baixo freia
+- **A** ou **RB**: atira (segure para disparo continuo)
+- **RT** acelera / **LT** freia
+- **B**: impulso
+- **X**, **Y** ou **LB**: troca de arma
+- **START**: pausa / continua (no pause, **SELECT** volta ao menu e **Y** alterna a tela cheia)
+- **START** ou **A**: (re)comeca na tela inicial / Game Over
+- Na escolha de melhoria: direcional/analogico escolhe a carta e **A** confirma
+
+O jogo pausa sozinho se o controle desconectar ou a janela perder o foco.
 
 A nave, os tiros e os asteroides atravessam as bordas da tela e reaparecem do
 lado oposto. Os asteroides chegam por todos os lados.
@@ -40,19 +58,70 @@ esmagado pelo escudo gera onda de impacto, faiscas e um tremor na tela.
 
 A cada 1000 pontos o jogador sobe de nivel: os asteroides ficam mais rapidos e
 aparecem com mais frequencia. **A cada 3 niveis a nave chega a uma nova
-galaxia** (novo "setor"), com plano de fundo, nebulosas e cores proprios:
+galaxia** (novo "setor"). Cada setor tem um tipo de cenario diferente do anterior
+(galaxia espiral, nebulosa, aglomerado, buraco negro, planeta com aneis, cinturao
+de asteroides, supernova, estrela binaria ou galaxia eliptica) e cores proprias:
 
-| Setor | Niveis | Galaxia |
-| --- | --- | --- |
-| 01 | 1-3 | Via Lactea (azul) |
-| 02 | 4-6 | Andromeda (violeta) |
-| 03 | 7-9 | Nuvem de Magalhaes (ambar) |
-| 04 | 10-12 | Triangulo (verde) |
-| 05 | 13-15 | Sombrero (vermelho) |
-| 06 | 16-18 | Redemoinho (gelo) |
+| Setor | Niveis | Nome | Cenario |
+| --- | --- | --- | --- |
+| 01 | 1-3 | Via Lactea | galaxia espiral |
+| 02 | 4-6 | Nebulosa De Orion | nebulosa |
+| 03 | 7-9 | Andromeda | galaxia espiral |
+| 04 | 10-12 | Pleiades | aglomerado de estrelas |
+| 05 | 13-15 | Kepler-22 | planeta com aneis |
+| 06 | 16-18 | Nuvem De Magalhaes | galaxia espiral |
+| 07 | 19-21 | Sagitario A* | buraco negro |
+| 08 | 22-24 | Cinturao De Kuiper | cinturao de asteroides |
+| 09 | 25-27 | Triangulo | galaxia espiral |
+| 10 | 28-30 | Nebulosa Do Caranguejo | supernova |
+| 11 | 31-33 | Alfa Centauri | estrela binaria |
+| 12 | 34-36 | M87 | galaxia eliptica |
+| 13 | 37-39 | Sombrero | galaxia espiral |
+| 14 | 40-42 | Nebulosa Da Aguia | nebulosa |
+| 15 | 43-45 | Omega Centauri | aglomerado de estrelas |
+| 16 | 46-48 | Trappist-1 | planeta com aneis |
+| 17 | 49-51 | Redemoinho | galaxia espiral |
+| 18 | 52-54 | Cygnus X-1 | buraco negro |
+| 19 | 55-57 | Cinturao Principal | cinturao de asteroides |
+| 20 | 58-60 | Betelgeuse | supernova |
+| 21 | 61-63 | Catavento | galaxia espiral |
+| 22 | 64-66 | Sirius | estrela binaria |
+| 23 | 67-69 | Maffei 1 | galaxia eliptica |
+| 24 | 70-72 | Nebulosa Da Helice | nebulosa |
+| 25 | 73-75 | Girassol | galaxia espiral |
+| 26 | 76-78 | Aglomerado De Hercules | aglomerado de estrelas |
+| 27 | 79-81 | Proxima B | planeta com aneis |
+| 28 | 82-84 | Charuto | galaxia espiral |
+| 29 | 85-87 | Ton 618 | buraco negro |
+| 30 | 88-90 | Nuvem De Oort | cinturao de asteroides |
+| 31 | 91-93 | Olho Negro | galaxia espiral |
+| 32 | 94-96 | Sn 1987A | supernova |
+| 33 | 97-99 | Roda De Carro | galaxia espiral |
+| 34 | 100-102 | Grande Atrator | buraco negro |
+| 35 | 103-105 | Girino | galaxia espiral |
 
-Depois do setor 06 o ciclo recomeca. Os fundos sao gerados por codigo
+O nivel 100 cai no setor 34 (Grande Atrator). Depois do setor 35 o ciclo recomeca. Os fundos sao gerados por codigo
 (`spacemax/galaxias.py`), sem arquivos de imagem.
+
+## Melhorias da nave
+
+**A cada 6 niveis (6, 12, 18...) e a cada chefe derrotado o jogo pausa e
+oferece 3 cartas sorteadas**; o jogador
+escolhe uma (setas + ENTER, teclas 1/2/3, clique, ou direcional + A no
+controle). A nave pode receber **no maximo 10 melhorias por partida**; o
+contador aparece na tela de escolha e no pause.
+
+| Melhoria | Efeito por nivel | Max |
+| --- | --- | --- |
+| Cadencia | atira 15% mais rapido | 4 |
+| Tiro multiplo | +1 tiro em leque | 2 |
+| Alcance | tiros vao 25% mais longe | 3 |
+| Motor | +12% aceleracao e velocidade | 3 |
+| Manobra | gira 15% mais rapido | 3 |
+| Escudo longo | escudo dura +2 s | 3 |
+| Arsenal | +1 tiro explosivo | 3 |
+| Recarga | explosivos recarregam 25% antes | 3 |
+| Reparo | recupera 1 vida (so aparece sem vida cheia) | - |
 
 ## Arma explosiva
 
@@ -76,10 +145,26 @@ uma vida; com escudo, a nave e empurrada para longe e causa dano.
 | 01 | 5 | Sentinela (vermelho) | hexagono com anel segmentado | rajadas em circulo |
 | 02 | 10 | Arpao (violeta) | ponta de flecha que vira para a nave | leque de tiros mirados |
 | 03 | 15 | Orbita (verde) | losango com 3 satelites | espiral; os satelites bloqueiam tiros e tambem atiram |
-| 04 | 20 | Prisma (rosa) | quadrado duplo | mira (linha tracejada), investe contra a nave e solta um anel |
-| 05 | 25 | Nucleo (laranja) | aneis concentricos | espiral dupla e minas que explodem em estilhacos |
+| 04 | 20 | Gemeos (amarelo claro) | dois triangulos orbitando um centro vazio | tiros mirados alternados e cruzes; so os gemeos levam dano |
+| 05 | 25 | Prisma (rosa) | quadrado duplo | mira (linha tracejada), investe contra a nave e solta um anel |
+| 06 | 30 | Espectro (azul) | fantasma | some (intocavel), reaparece longe da nave soltando um anel; furioso deixa minas |
+| 07 | 35 | Nucleo (laranja) | aneis concentricos | espiral dupla e minas que explodem em estilhacos |
+| 08 | 40 | Vespa (verde-limao) | inseto com asas | misseis teleguiados e ferrao mirado |
+| 09 | 45 | Farol (branco) | octogono com lampada | laser que varre a tela (a mira tracejada avisa antes); furioso usa dois feixes |
 
-Depois do 5o chefe a lista recomeca com os chefes mais fortes (mais vida,
+| 10 | 50 | Bastiao (azul) | hexagono com escudo em arco | o escudo (240 graus) gira para a nave e bloqueia tiros; o ponto fraco sao as costas |
+| 11 | 55 | Serpente (verde) | cabeca com 12 segmentos | so a cabeca leva dano; o corpo bloqueia tiros e machuca; tiros da cabeca e da cauda |
+| 12 | 60 | Colmeia (mel) | hexagono com favos | solta drones cacadores que podem ser abatidos (+25 pontos cada) |
+| 13 | 65 | Espelho (prata) | losango com duas placas | as placas refletem os tiros de volta; mire no vao estreito entre elas |
+| 14 | 70 | Pulsar (rosa) | estrela pulsante | aneis que crescem pela tela; passe pelo vao de cada anel |
+| 15 | 75 | Hidra (turquesa) | nucleo com 3 cabecas | o nucleo e blindado ate as 3 cabecas cairem; cada cabeca solta um anel ao cair |
+| 16 | 80 | Miragem (lilas) | 3 pentagonos iguais | so a copia verdadeira leva dano (so ela pisca ao ser atingida); embaralham a cada 6 s |
+| 17 | 85 | Ciclone (agua) | triangulo com bracos | bracos giratorios bloqueiam tiros e cortam a nave; o giro inverte (os bracos piscam antes) |
+| 18 | 90 | Tempestade (azul claro) | nuvem | marca pontos no chao e um raio cai neles 1 s depois; chuva de tiros |
+| 19 | 95 | Singularidade (laranja) | buraco negro | gravidade puxa a nave; jatos giratorios e aneis |
+| 20 | 100 | Imperador (dourado) | estrela de 8 pontas | alterna 3 fases: aneis e leque, laser giratorio, misseis e minas |
+
+Depois do 20o chefe a lista recomeca com os chefes mais fortes (mais vida,
 tiros mais rapidos e frequentes).
 
 ## Elementos implementados
@@ -88,7 +173,7 @@ tiros mais rapidos e frequentes).
 - Rastro de exaustao do motor, jatos laterais ao girar e rastro fantasma durante o impulso
 - Asteroides que se quebram em pedacos menores (grande -> medio -> pequeno)
 - Tela sem bordas: tudo atravessa as laterais e reaparece do outro lado
-- Planos de fundo procedurais com uma galaxia diferente a cada 3 niveis, com transicao suave
+- 35 setores com planos de fundo procedurais de 9 tipos (espiral, nebulosa, buraco negro, planeta...), um a cada 3 niveis, com transicao suave
 - Sistema de pontuacao por tamanho de asteroide + recorde salvo em `recorde.txt`
 - Niveis com dificuldade progressiva (velocidade e frequencia dos asteroides)
 - Sistema de vidas com reaparecimento e invencibilidade temporaria
@@ -97,7 +182,7 @@ tiros mais rapidos e frequentes).
 - Tela inicial (com asteroides flutuando ao fundo) e tela de Game Over
 - Efeitos sonoros gerados por codigo (sem precisar de arquivos de audio)
 - Faiscas de explosao, ondas de choque e tremor de tela (ao pegar escudo, bater com escudo e ser atingido)
-- Cinco chefes diferentes, um a cada 5 niveis, com barra de vida e aviso de entrada
+- Vinte chefes diferentes (ate o nivel 100), um a cada 5 niveis, com barra de vida e aviso de entrada
 
 ## Estrutura do projeto
 
@@ -108,13 +193,16 @@ SpaceMax/
 ├── requirements-dev.txt    # dependencias de desenvolvimento (py2puml)
 ├── docs/uml/               # diagramas PlantUML (.puml) e imagens geradas
 ├── ferramentas/
-│   └── gerar_uml.py        # gera os diagramas com py2puml + PlantUML
+│   ├── gerar_uml.py        # gera os diagramas com py2puml + PlantUML
+│   └── testar_controle.py  # mostra no terminal os botoes lidos do controle
 └── spacemax/
     ├── config.py           # constantes: tela, paleta, fisica, dificuldade
     ├── jogo.py             # classe Jogo: loop principal, regras e colisoes
-    ├── galaxias.py         # planos de fundo: uma galaxia a cada 3 niveis
+    ├── galaxias.py         # planos de fundo: um setor (cenario) a cada 3 niveis
     ├── grafico.py          # primitivas de desenho vetorial (linhas com brilho)
-    ├── interface.py        # HUD, avisos, tela inicial e de Game Over
+    ├── interface.py        # HUD, avisos, telas de inicio, pause, melhoria e Game Over
+    ├── controle.py         # controles USB/bluetooth (SDL GameController)
+    ├── melhorias.py        # melhorias da nave e sorteio das cartas
     ├── sons.py             # efeitos sonoros gerados por codigo
     ├── recorde.py          # leitura/gravacao do recorde
     └── entidades/
@@ -123,8 +211,9 @@ SpaceMax/
         ├── tiro.py         # tiros
         ├── meteoro.py      # asteroides (quebram em pedacos menores)
         ├── item.py         # item de escudo
-        ├── chefes.py       # chefes (um a cada 5 niveis) e a ordem em que aparecem
-        ├── projetil.py     # projeteis e minas dos chefes
+        ├── chefes.py       # base dos chefes e chefes 01-09
+        ├── chefes_elite.py # chefes 10-20 (niveis 50-100) e a ordem em que aparecem
+        ├── projetil.py     # projeteis, minas, misseis e drones dos chefes
         ├── particula.py    # particulas de explosao
         └── estrela.py      # estrelas do cenario
 ```

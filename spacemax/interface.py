@@ -15,6 +15,7 @@ from .config import (
     LARGURA,
 )
 from .entidades.nave import CASCO
+from .melhorias import LIMITE_MELHORIAS, POR_CHAVE, total_escolhidas
 
 FONTES_MONO = "consolas,menlo,dejavusansmono,liberationmono,couriernew"
 MARGEM = 24
@@ -140,9 +141,35 @@ def desenhar_arma(tela, fontes, arma, explosiva, municao, municao_max, fracao_re
 # ---------------------------------------------------------------------------
 # Telas
 # ---------------------------------------------------------------------------
-def _linha_controle(tela, fontes, y, acao, teclas):
-    desenhar_texto(tela, fontes.pequena, acao, LARGURA / 2 - 20, y, COR_APAGADA, "midright")
-    desenhar_texto(tela, fontes.pequena, teclas, LARGURA / 2 + 20, y, COR_SECUNDARIA, "midleft")
+COLUNA_ACAO = LARGURA / 2 - 150  # alinhada a direita
+COLUNA_TECLADO = LARGURA / 2 - 120
+COLUNA_CONTROLE = LARGURA / 2 + 110
+
+CONTROLES_INICIO = [
+    ("GIRAR", "SETAS ESQ/DIR · A / D", "ANALOGICO · DIRECIONAL"),
+    ("ACELERAR", "SETA CIMA · W", "CIMA · RT"),
+    ("FREAR", "SETA BAIXO · S", "BAIXO · LT"),
+    ("ATIRAR", "ESPACO · CLIQUE", "A · RB"),
+    ("IMPULSO", "CONTROL", "B"),
+    ("TROCAR ARMA", "Q · TAB", "X · Y · LB"),
+    ("PAUSAR", "P · ENTER · ESC", "START"),
+    ("TELA CHEIA", "F11 · ALT+ENTER", "Y (NOS MENUS)"),
+    ("SAIR", "ESC", "SELECT (NO PAUSE)"),
+]
+
+
+def _tabela_controles(tela, fontes, y, linhas, espacamento=22):
+    """Tabela ACAO | TECLADO | CONTROLE."""
+    desenhar_texto(tela, fontes.pequena, espacar("TECLADO"), COLUNA_TECLADO, y, COR_PRIMARIA, "midleft")
+    desenhar_texto(tela, fontes.pequena, espacar("CONTROLE"), COLUNA_CONTROLE, y, COR_PRIMARIA, "midleft")
+    pygame.draw.line(
+        tela, grafico.misturar(COR_APAGADA, 0.5), (COLUNA_ACAO - 110, y + 12), (COLUNA_CONTROLE + 200, y + 12)
+    )
+    for i, (acao, teclado, controle) in enumerate(linhas):
+        ly = y + 30 + i * espacamento
+        desenhar_texto(tela, fontes.pequena, acao, COLUNA_ACAO, ly, COR_APAGADA, "midright")
+        desenhar_texto(tela, fontes.pequena, teclado, COLUNA_TECLADO, ly, COR_SECUNDARIA, "midleft")
+        desenhar_texto(tela, fontes.pequena, controle, COLUNA_CONTROLE, ly, COR_SECUNDARIA, "midleft")
 
 
 def _prompt_piscando(tela, fontes, texto, y, frame):
@@ -150,32 +177,140 @@ def _prompt_piscando(tela, fontes, texto, y, frame):
         desenhar_texto(tela, fontes.media, f"[  {texto}  ]", LARGURA / 2, y, COR_PRIMARIA)
 
 
-def desenhar_tela_inicio(tela, fontes, recorde, frame):
-    escurecer_tela(tela, 150)
+def desenhar_tela_inicio(tela, fontes, recorde, frame, nome_controle=None):
+    escurecer_tela(tela, 160)
     desenhar_cantoneiras(tela, COR_PRIMARIA, tamanho=22)
 
     cy = ALTURA / 2
-    desenhar_texto(tela, fontes.titulo, espacar("SPACEMAX"), LARGURA / 2, cy - 150, COR_SECUNDARIA)
-    pygame.draw.line(tela, COR_PRIMARIA, (LARGURA / 2 - 150, cy - 108), (LARGURA / 2 + 150, cy - 108))
+    desenhar_texto(tela, fontes.titulo, espacar("SPACEMAX"), LARGURA / 2, cy - 210, COR_SECUNDARIA)
+    pygame.draw.line(tela, COR_PRIMARIA, (LARGURA / 2 - 150, cy - 168), (LARGURA / 2 + 150, cy - 168))
     desenhar_texto(
-        tela, fontes.pequena, espacar("QUEBRE OS ASTEROIDES · SOBREVIVA"), LARGURA / 2, cy - 88,
+        tela, fontes.pequena, espacar("QUEBRE OS ASTEROIDES · SOBREVIVA"), LARGURA / 2, cy - 148,
         COR_APAGADA,
     )
 
-    controles = [
-        ("GIRAR", "SETAS ESQ/DIR  ou  A / D"),
-        ("ACELERAR", "SETA CIMA  ou  W"),
-        ("FREAR", "SETA BAIXO  ou  S"),
-        ("IMPULSO", "CONTROL"),
-        ("ATIRAR", "ESPACO"),
-        ("TROCAR ARMA", "Q  ou  TAB"),
-        ("SAIR", "ESC"),
-    ]
-    for i, (acao, teclas) in enumerate(controles):
-        _linha_controle(tela, fontes, cy - 50 + i * 21, acao, teclas)
+    _tabela_controles(tela, fontes, cy - 115, CONTROLES_INICIO)
 
-    _prompt_piscando(tela, fontes, "PRESSIONE ESPACO", cy + 108, frame)
-    desenhar_texto(tela, fontes.pequena, f"RECORDE  {recorde:06d}", LARGURA / 2, cy + 150, COR_APAGADA)
+    _prompt_piscando(tela, fontes, "ESPACO / START PARA COMECAR", cy + 145, frame)
+    desenhar_texto(tela, fontes.pequena, f"RECORDE  {recorde:06d}", LARGURA / 2, cy + 182, COR_APAGADA)
+    if nome_controle:
+        desenhar_texto(tela, fontes.pequena, f"CONTROLE CONECTADO: {nome_controle}", LARGURA / 2, cy + 204, COR_ITEM)
+    else:
+        desenhar_texto(tela, fontes.pequena, "NENHUM CONTROLE CONECTADO", LARGURA / 2, cy + 204, COR_APAGADA)
+
+
+def desenhar_tela_pausa(tela, fontes, melhorias_nave, tela_cheia, frame):
+    escurecer_tela(tela, 170)
+    desenhar_cantoneiras(tela, COR_PRIMARIA, tamanho=22)
+
+    cy = ALTURA / 2
+    desenhar_texto(tela, fontes.titulo, espacar("PAUSADO"), LARGURA / 2, cy - 150, COR_SECUNDARIA)
+    pygame.draw.line(tela, COR_PRIMARIA, (LARGURA / 2 - 140, cy - 108), (LARGURA / 2 + 140, cy - 108))
+
+    estado_tela = "LIGADA" if tela_cheia else "DESLIGADA"
+    _tabela_controles(tela, fontes, cy - 80, [
+        ("CONTINUAR", "P · ENTER", "START · B"),
+        ("MENU INICIAL", "ESC", "SELECT"),
+        (f"TELA CHEIA ({estado_tela})", "F11 · ALT+ENTER", "Y"),
+    ])
+
+    # melhorias ja escolhidas nesta partida
+    titulo = f"MELHORIAS DA NAVE  {total_escolhidas(melhorias_nave)}/{LIMITE_MELHORIAS}"
+    desenhar_texto(tela, fontes.pequena, espacar(titulo), LARGURA / 2, cy + 50, COR_PRIMARIA)
+    itens = [f"{POR_CHAVE[c].nome} {n}" for c, n in melhorias_nave.items() if c in POR_CHAVE]
+    if not itens:
+        itens = ["NENHUMA AINDA · A CADA 6 NIVEIS E A CADA CHEFE DERROTADO"]
+    for i in range(0, len(itens), 4):
+        linha = "   ·   ".join(itens[i:i + 4])
+        desenhar_texto(tela, fontes.pequena, linha, LARGURA / 2, cy + 76 + (i // 4) * 20, COR_SECUNDARIA)
+
+    _prompt_piscando(tela, fontes, "P / START PARA CONTINUAR", cy + 170, frame)
+
+
+# ---------------------------------------------------------------------------
+# Escolha de melhoria (a cada nivel)
+# ---------------------------------------------------------------------------
+LARGURA_CARTA, ALTURA_CARTA, VAO_CARTA = 230, 180, 30
+Y_CARTA = ALTURA / 2 - 70
+
+
+def _retangulos_cartas(quantidade):
+    total = quantidade * LARGURA_CARTA + (quantidade - 1) * VAO_CARTA
+    x0 = (LARGURA - total) / 2
+    return [
+        pygame.Rect(int(x0 + i * (LARGURA_CARTA + VAO_CARTA)), int(Y_CARTA), LARGURA_CARTA, ALTURA_CARTA)
+        for i in range(quantidade)
+    ]
+
+
+def carta_em(posicao, quantidade):
+    """Indice da carta sob o mouse (ou None)."""
+    for i, rect in enumerate(_retangulos_cartas(quantidade)):
+        if rect.collidepoint(posicao):
+            return i
+    return None
+
+
+def _quebrar(texto, limite):
+    linhas, atual = [], ""
+    for palavra in texto.split():
+        if atual and len(atual) + 1 + len(palavra) > limite:
+            linhas.append(atual)
+            atual = palavra
+        else:
+            atual = f"{atual} {palavra}".strip()
+    return linhas + [atual] if atual else linhas
+
+
+def desenhar_tela_melhoria(tela, fontes, nivel, opcoes, niveis_atuais, selecionada, pronto):
+    escurecer_tela(tela, 175)
+    cy = ALTURA / 2
+    numero = total_escolhidas(niveis_atuais) + 1
+    desenhar_texto(
+        tela, fontes.pequena, espacar(f"NIVEL {nivel:02d} · MELHORIA {numero}/{LIMITE_MELHORIAS}"),
+        LARGURA / 2, cy - 160, COR_APAGADA,
+    )
+    desenhar_texto(tela, fontes.grande, espacar("ESCOLHA UMA MELHORIA"), LARGURA / 2, cy - 130, COR_PRIMARIA)
+
+    for i, (melhoria, rect) in enumerate(zip(opcoes, _retangulos_cartas(len(opcoes)))):
+        ativa = i == selecionada
+        cor = COR_PRIMARIA if ativa else COR_APAGADA
+        if ativa:
+            fundo = pygame.Surface(rect.size, pygame.SRCALPHA)
+            fundo.fill((*COR_PRIMARIA, 22))
+            tela.blit(fundo, rect.topleft)
+        pygame.draw.rect(tela, cor, rect, 2 if ativa else 1)
+
+        desenhar_texto(tela, fontes.pequena, f"[{i + 1}]", rect.centerx, rect.top + 20, cor)
+        desenhar_texto(
+            tela, fontes.media, melhoria.nome, rect.centerx, rect.top + 52,
+            COR_SECUNDARIA if ativa else COR_APAGADA,
+        )
+        for j, linha in enumerate(_quebrar(melhoria.descricao, 26)):
+            desenhar_texto(tela, fontes.pequena, linha, rect.centerx, rect.top + 86 + j * 18, COR_SECUNDARIA)
+
+        # nivel atual -> proximo (quadradinhos)
+        atual = niveis_atuais.get(melhoria.chave, 0)
+        if melhoria.nivel_max <= 5:
+            tamanho, vao = 12, 6
+            largura = melhoria.nivel_max * tamanho + (melhoria.nivel_max - 1) * vao
+            x0 = rect.centerx - largura / 2
+            for k in range(melhoria.nivel_max):
+                quadrado = pygame.Rect(int(x0 + k * (tamanho + vao)), rect.bottom - 34, tamanho, tamanho)
+                if k < atual:
+                    pygame.draw.rect(tela, COR_PRIMARIA, quadrado)
+                elif k == atual:
+                    pygame.draw.rect(tela, COR_ITEM, quadrado, 0 if ativa else 1)
+                else:
+                    pygame.draw.rect(tela, COR_APAGADA, quadrado, 1)
+        else:
+            desenhar_texto(tela, fontes.pequena, "+1 VIDA", rect.centerx, rect.bottom - 28, COR_PERIGO)
+
+    dica = "< >  ESCOLHER   ·   ENTER / A  CONFIRMAR   ·   1  2  3"
+    desenhar_texto(
+        tela, fontes.pequena, dica, LARGURA / 2, Y_CARTA + ALTURA_CARTA + 40,
+        COR_SECUNDARIA if pronto else COR_APAGADA,
+    )
 
 
 def desenhar_tela_gameover(tela, fontes, pontuacao, recorde, nivel, setor, novo_recorde, frame):
@@ -197,4 +332,4 @@ def desenhar_tela_gameover(tela, fontes, pontuacao, recorde, nivel, setor, novo_
         tela, fontes.pequena, f"NIVEL {nivel:02d}   ·   SETOR {setor:02d}", LARGURA / 2, cy + 24,
         COR_APAGADA,
     )
-    _prompt_piscando(tela, fontes, "ESPACO PARA JOGAR NOVAMENTE", cy + 90, frame)
+    _prompt_piscando(tela, fontes, "ESPACO / START PARA JOGAR NOVAMENTE", cy + 90, frame)

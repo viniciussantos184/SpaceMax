@@ -20,14 +20,20 @@ state "Jogando" as Jogando {
   [*] --> GalaxiaN
   GalaxiaN --> GalaxiaN1 : nivel passa de 3 em 3\n[fundo.ir_para()]
 }
+state "Pausado" as Pausado : tudo congelado\nmostra controles e melhorias
+state "Melhoria" as Melhoria : escolhe 1 de 3 cartas\n(ate 10 por partida)
 state "Game Over" as GameOver : pontos, nivel e setor\n(salva recorde se superado)
 
 Inicio --> Jogando : ESPACO / clique\n[reiniciar()]
+Jogando --> Pausado : P / ENTER / ESC / START\n(ou foco perdido / controle desconectado)
+Pausado --> Jogando : P / ENTER / START / B
+Pausado --> Inicio : ESC / SELECT\n[voltar_ao_inicio()]
+Jogando --> Melhoria : subiu de nivel\n(e ainda ha melhorias disponiveis)
+Melhoria --> Jogando : carta escolhida
 Jogando --> GameOver : vidas == 0
 GameOver --> Jogando : ESPACO / clique\n[reiniciar()]
 
 Inicio --> [*] : ESC / fechar janela
-Jogando --> [*] : ESC / fechar janela
 GameOver --> [*] : ESC / fechar janela
 
 @enduml
