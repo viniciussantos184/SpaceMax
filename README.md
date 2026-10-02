@@ -47,10 +47,10 @@ lado oposto. Os asteroides chegam por todos os lados.
 | Pequeno | e destruido | 100 |
 
 Se um asteroide colidir com a nave, uma vida e perdida (voce comeca com 5) e a
-nave reaparece no centro, piscando e invencivel por 2 segundos. A cada 1000
+nave reaparece no centro, piscando e invencivel por 2 segundos. A cada 3000
 pontos o jogador ganha uma vida extra, ate o limite de 5 vidas. A
-cada 6-10 segundos surge um item ambar em forma de losango (ate 2 na tela):
-ele da um escudo de 6 segundos que destroi os asteroides em que a nave
+cada 9-14 segundos surge um item ambar em forma de losango (ate 2 na tela):
+ele da um escudo de 5 segundos que destroi os asteroides em que a nave
 encostar. Pegar o escudo solta uma onda de choque ambar, e cada asteroide
 esmagado pelo escudo gera onda de impacto, faiscas e um tremor na tela.
 
@@ -134,9 +134,10 @@ tiros restantes e a barra de recarga.
 
 ## Chefes
 
-**A cada 5 niveis (5, 10, 15...) aparece um chefe.** Durante a luta nao surgem
-asteroides novos e o nivel fica congelado ate o chefe ser derrotado, o que vale
-1500 pontos. Uma barra de vida aparece na base da tela. Abaixo de metade da
+**A cada 5 niveis (5, 10, 15...) aparece um chefe.** Durante a luta os
+asteroides continuam chegando (com menos frequencia) e o nivel fica congelado
+ate o chefe ser derrotado, o que vale 1500 pontos. Cada chefe tem mais vida e
+ataca mais rapido que o anterior. Uma barra de vida aparece na base da tela. Abaixo de metade da
 vida o chefe fica "furioso" e ataca mais rapido. Encostar nele sem escudo custa
 uma vida; com escudo, a nave e empurrada para longe e causa dano.
 

@@ -56,10 +56,10 @@ DANO_EXPLOSAO_CHEFE = 6
 
 VIDAS_INICIAIS = 5
 VIDAS_MAXIMAS = 5
-PONTOS_POR_VIDA = 1000  # uma vida extra a cada 1000 pontos (ate VIDAS_MAXIMAS)
+PONTOS_POR_VIDA = 3000  # uma vida extra a cada 3000 pontos (ate VIDAS_MAXIMAS)
 DURACAO_INVENCIVEL = 2 * FPS  # apos ser atingido
-DURACAO_ESCUDO = 6 * FPS  # item de escudo
-INTERVALO_ESCUDO = (6 * FPS, 10 * FPS)  # um escudo novo a cada 6-10 s
+DURACAO_ESCUDO = 5 * FPS  # item de escudo
+INTERVALO_ESCUDO = (9 * FPS, 14 * FPS)  # um escudo novo a cada 9-14 s
 MAX_ESCUDOS_NA_TELA = 2
 
 # ---------------------------------------------------------------------------
@@ -78,15 +78,20 @@ FRAGMENTOS_POR_QUEBRA = 2
 # ---------------------------------------------------------------------------
 PONTOS_POR_NIVEL = 1000
 
-ASTEROIDES_INICIAIS = 4
-VELOCIDADE_ASTEROIDE_INICIAL = 1.1
-AUMENTO_VELOCIDADE_POR_NIVEL = 0.12
-VELOCIDADE_ASTEROIDE_TETO = 3.2
+ASTEROIDES_INICIAIS = 5
+MAX_ASTEROIDES_ONDA = 10  # teto de asteroides grandes numa onda nova
+VELOCIDADE_ASTEROIDE_INICIAL = 1.3
+AUMENTO_VELOCIDADE_POR_NIVEL = 0.16
+VELOCIDADE_ASTEROIDE_TETO = 3.8
 
-INTERVALO_SPAWN_INICIAL = 260  # frames entre novos asteroides grandes
-INTERVALO_SPAWN_MINIMO = 90
-REDUCAO_SPAWN_POR_NIVEL = 20
-MAX_ASTEROIDES = 22  # limite de asteroides na tela (inclui fragmentos)
+INTERVALO_SPAWN_INICIAL = 200  # frames entre novos asteroides grandes
+INTERVALO_SPAWN_MINIMO = 60
+REDUCAO_SPAWN_POR_NIVEL = 22
+MAX_ASTEROIDES = 26  # limite de asteroides na tela (inclui fragmentos)
+
+# durante a luta contra o chefe os asteroides continuam vindo, mas com menos frequencia
+MULTIPLICADOR_SPAWN_CHEFE = 2.0  # intervalo de spawn x2
+MAX_ASTEROIDES_CHEFE = 12
 
 DURACAO_AVISO_NIVEL = 120  # frames que o aviso "LEVEL X" fica visivel
 

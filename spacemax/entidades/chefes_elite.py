@@ -60,7 +60,7 @@ class Bastiao(Chefe):
     ABERTURA_ARCO = 240  # graus cobertos pelo escudo
     NUCLEO = _poligono_regular(6, 22, 30)
 
-    def __init__(self, ciclo: int = 0):
+    def __init__(self, ciclo: float = 0):
         super().__init__(ciclo)
         self.angulo_escudo: float = 90.0  # 0 = direita, sentido horario
 
@@ -122,7 +122,7 @@ class Serpente(Chefe):
     ESPACAMENTO = 7  # frames de historico entre segmentos
     CABECA = [(0, -22), (16, -4), (12, 14), (-12, 14), (-16, -4)]
 
-    def __init__(self, ciclo: int = 0):
+    def __init__(self, ciclo: float = 0):
         super().__init__(ciclo)
         self.historico: list[tuple[float, float]] = []
 
@@ -204,7 +204,7 @@ class Colmeia(Chefe):
     FAVOS = [(0, 0), (12, -7), (12, 7), (0, 14), (-12, 7), (-12, -7), (0, -14)]
     VIDA_DRONE = 9 * FPS
 
-    def __init__(self, ciclo: int = 0):
+    def __init__(self, ciclo: float = 0):
         super().__init__(ciclo)
         self.drones: list[ProjetilChefe] = []
 
@@ -254,7 +254,7 @@ class Espelho(Chefe):
     MEIO_COMPRIMENTO = 30
     ABERTURA_PLACAS = 35  # graus entre a mira e cada placa (deixa um vao no meio)
 
-    def __init__(self, ciclo: int = 0):
+    def __init__(self, ciclo: float = 0):
         super().__init__(ciclo)
         self.mira: float = 90.0
         self.refletidos: list[ProjetilChefe] = []
@@ -325,7 +325,7 @@ class Pulsar(Chefe):
     VELOCIDADE_ANEL = 2.3
     ESPESSURA_ANEL = 5
 
-    def __init__(self, ciclo: int = 0):
+    def __init__(self, ciclo: float = 0):
         super().__init__(ciclo)
         self.aneis: list[list[float]] = []  # [raio, angulo do vao, abertura do vao]
 
@@ -392,7 +392,7 @@ class Hidra(Chefe):
     PESCOCO = 74
     CABECA = [(0, -16), (14, 6), (0, 14), (-14, 6)]
 
-    def __init__(self, ciclo: int = 0):
+    def __init__(self, ciclo: float = 0):
         super().__init__(ciclo)
         parte = int(self.vida_max * 0.2)
         self.vida_cabecas: list[int] = [parte] * 3  # o resto da vida fica no nucleo
@@ -501,7 +501,7 @@ class Miragem(Chefe):
     RAIO_RODA = 150
     DURACAO_EMBARALHAR = 70
 
-    def __init__(self, ciclo: int = 0):
+    def __init__(self, ciclo: float = 0):
         super().__init__(ciclo)
         self.centro: tuple[float, float] = (LARGURA / 2, POSICAO_INICIAL_Y)
         self.giro: float = 0.0
@@ -573,7 +573,7 @@ class Ciclone(Chefe):
     FIM_BRACO = 165
     AVISO_INVERSAO = 40
 
-    def __init__(self, ciclo: int = 0):
+    def __init__(self, ciclo: float = 0):
         super().__init__(ciclo)
         self.giro: float = 0.0
         self.sentido: int = 1
@@ -643,7 +643,7 @@ class Tempestade(Chefe):
     DURACAO_RAIO = 12
     RAIO_IMPACTO = 46
 
-    def __init__(self, ciclo: int = 0):
+    def __init__(self, ciclo: float = 0):
         super().__init__(ciclo)
         self.raios: list[list[float]] = []  # [x, y, frames ate cair (negativo = caindo)]
 
@@ -717,7 +717,7 @@ class Singularidade(Chefe):
     GRAVIDADE = 8.0
     GRAVIDADE_MAX = 0.12
 
-    def __init__(self, ciclo: int = 0):
+    def __init__(self, ciclo: float = 0):
         super().__init__(ciclo)
         self.jato: float = 0.0
 
@@ -785,7 +785,7 @@ class Imperador(Chefe):
     ESPESSURA_FEIXE = 8
     FASES = ("COROA", "RAIO", "LEGIAO")
 
-    def __init__(self, ciclo: int = 0):
+    def __init__(self, ciclo: float = 0):
         super().__init__(ciclo)
         self.angulo_feixe: float = 90.0
         self.estrela = [

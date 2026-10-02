@@ -45,7 +45,10 @@ from .config import (
     INTERVALO_SPAWN_MINIMO,
     LARGURA,
     MAX_ASTEROIDES,
+    MAX_ASTEROIDES_CHEFE,
+    MAX_ASTEROIDES_ONDA,
     MAX_ESCUDOS_NA_TELA,
+    MULTIPLICADOR_SPAWN_CHEFE,
     NIVEIS_POR_CHEFE,
     NIVEIS_POR_MELHORIA,
     PONTOS_CHEFE,
@@ -163,16 +166,16 @@ class Jogo:
         return max(INTERVALO_SPAWN_MINIMO, intervalo)
 
     def lancar_onda(self):
-        quantidade = min(8, ASTEROIDES_INICIAIS + (self.nivel - 1) // 2)
+        quantidade = min(MAX_ASTEROIDES_ONDA, ASTEROIDES_INICIAIS + (self.nivel - 1) // 2)
         for _ in range(quantidade):
             self.meteoros.append(Meteoro.na_borda(self.velocidade_asteroide()))
 
     # ------------------------------------------------------------------ chefes
     def iniciar_chefe(self):
-        """Chefe diferente a cada vez; depois do ultimo a lista recomeca mais forte."""
+        """Chefe diferente a cada vez, cada um mais forte que o anterior; depois do ultimo a lista recomeca."""
         indice = self.chefes_derrotados
         classe = CHEFES[indice % len(CHEFES)]
-        self.chefe = classe(ciclo=indice // len(CHEFES))
+        self.chefe = classe(ciclo=indice / len(CHEFES))
         self.mostrar_aviso_chefe(f"ALERTA  ·  CHEFE {indice + 1:02d}", self.chefe.NOME, self.chefe.COR)
         self.tempo_aviso_nivel = 0
         tocar(self.sons, "alerta")
@@ -507,17 +510,22 @@ class Jogo:
             self.disparar()
 
     def gerar_asteroides(self):
-        if self.chefe:  # durante a luta nao surgem asteroides novos
-            return
-        if not self.meteoros:
-            self.lancar_onda()
-            self.frames_ate_proximo_spawn = self.intervalo_spawn()
-            return
+        # durante a luta contra o chefe os asteroides seguem vindo, um a um e mais espacados
+        if self.chefe:
+            intervalo = int(self.intervalo_spawn() * MULTIPLICADOR_SPAWN_CHEFE)
+            limite = MAX_ASTEROIDES_CHEFE
+        else:
+            if not self.meteoros:
+                self.lancar_onda()
+                self.frames_ate_proximo_spawn = self.intervalo_spawn()
+                return
+            intervalo = self.intervalo_spawn()
+            limite = MAX_ASTEROIDES
 
         self.frames_ate_proximo_spawn -= 1
         if self.frames_ate_proximo_spawn <= 0:
-            self.frames_ate_proximo_spawn = self.intervalo_spawn()
-            if len(self.meteoros) < MAX_ASTEROIDES:
+            self.frames_ate_proximo_spawn = intervalo
+            if len(self.meteoros) < limite:
                 self.meteoros.append(Meteoro.na_borda(self.velocidade_asteroide()))
 
     def gerar_itens(self):

@@ -20,9 +20,10 @@ DURACAO_ENTRADA = 2 * FPS
 POSICAO_INICIAL_Y = 160  # altura em que o chefe para ao terminar a entrada
 
 # ajuste geral de dificuldade (vale para todos os chefes)
-FATOR_VIDA = 0.45  # fracao da VIDA_BASE de cada chefe
-FATOR_INTERVALO = 1.7  # multiplica o intervalo entre ataques (maior = ataca menos)
-FATOR_VELOCIDADE = 0.7  # multiplica a velocidade dos projeteis
+FATOR_VIDA = 0.75  # fracao da VIDA_BASE de cada chefe
+FATOR_INTERVALO = 1.2  # multiplica o intervalo entre ataques (maior = ataca menos)
+FATOR_VELOCIDADE = 0.9  # multiplica a velocidade dos projeteis
+FATOR_FURIOSO = 0.7  # intervalo entre ataques na fase furiosa (menor = mais agressivo)
 
 
 def _poligono_regular(lados, raio, giro=0.0):
@@ -41,10 +42,12 @@ class Chefe(EntidadeColidivel):
     RAIO = 36
     VIDA_BASE = 40
 
-    def __init__(self, ciclo: int = 0):
+    def __init__(self, ciclo: float = 0):
         super().__init__(LARGURA / 2, -self.RAIO * 2, self.RAIO)
-        self.ciclo: int = ciclo  # quantas vezes a lista de chefes ja deu a volta
-        self.vida_max: int = int(self.VIDA_BASE * FATOR_VIDA * (1 + 0.35 * ciclo))
+        # quantas vezes a lista de chefes ja deu a volta; fracionario para que cada
+        # chefe seja um pouco mais forte que o anterior (0.0, 0.05, 0.1 ... 1.0, 1.05 ...)
+        self.ciclo: float = ciclo
+        self.vida_max: int = int(self.VIDA_BASE * FATOR_VIDA * (1 + 0.5 * ciclo))
         self.vida: int = self.vida_max
         self.tempo: int = 0
         self.tempo_entrada: int = DURACAO_ENTRADA
@@ -141,7 +144,7 @@ class Chefe(EntidadeColidivel):
     # ------------------------------------------------------------ utilitarios
     def ritmo(self, frames):
         """Intervalo entre ataques: menor na fase furiosa e a cada volta do ciclo."""
-        fator = FATOR_INTERVALO * (0.8 if self.furioso else 1.0) * 0.9 ** self.ciclo
+        fator = FATOR_INTERVALO * (FATOR_FURIOSO if self.furioso else 1.0) * 0.85 ** self.ciclo
         return max(4, int(frames * fator))
 
     def pronto(self, nome, intervalo) -> bool:
@@ -166,7 +169,7 @@ class Chefe(EntidadeColidivel):
         """Projetil em `angulo` (graus, 0 = direita, sentido horario na tela)."""
         rad = math.radians(angulo)
         x, y = origem or (self.x, self.y)
-        velocidade *= FATOR_VELOCIDADE * (1 + 0.1 * self.ciclo)
+        velocidade *= FATOR_VELOCIDADE * (1 + 0.15 * self.ciclo)
         return ProjetilChefe(x, y, math.cos(rad) * velocidade, math.sin(rad) * velocidade, self.COR, **extra)
 
     def rajada_circular(self, quantidade, velocidade, deslocamento=0.0):
@@ -206,7 +209,7 @@ class Sentinela(Chefe):
     VIDA_BASE = 40
     NUCLEO = _poligono_regular(6, 22)
 
-    def __init__(self, ciclo: int = 0):
+    def __init__(self, ciclo: float = 0):
         super().__init__(ciclo)
         self.deslocamento_rajada: float = 0.0
 
@@ -268,7 +271,7 @@ class Arpao(Chefe):
     DETALHE = [(0, -24), (0, 8)]
     PONTA = (0, -38)
 
-    def __init__(self, ciclo: int = 0):
+    def __init__(self, ciclo: float = 0):
         super().__init__(ciclo)
         self.angulo = 180.0  # entra com a ponta para baixo (0 = cima)
         self.destino: tuple[float, float] = (LARGURA / 2, POSICAO_INICIAL_Y)
@@ -325,7 +328,7 @@ class Orbita(Chefe):
     LOSANGO_INTERNO = [(0, -11), (11, 0), (0, 11), (-11, 0)]
     QUADRADO = [(-7, -7), (7, -7), (7, 7), (-7, 7)]
 
-    def __init__(self, ciclo: int = 0):
+    def __init__(self, ciclo: float = 0):
         super().__init__(ciclo)
         self.espiral: float = 0.0
         self.giro_orbita: float = 0.0
@@ -416,7 +419,7 @@ class Prisma(Chefe):
     MIRANDO, INVESTIDA, RECUPERANDO = range(3)
     TRAVA_MIRA = 25  # ultimos frames da mira: o alvo congela (da para desviar)
 
-    def __init__(self, ciclo: int = 0):
+    def __init__(self, ciclo: float = 0):
         super().__init__(ciclo)
         self.fase: int = self.RECUPERANDO
         self.tempo_fase: int = self.ritmo(60)
@@ -514,7 +517,7 @@ class Nucleo(Chefe):
     RAIO = 34
     VIDA_BASE = 70
 
-    def __init__(self, ciclo: int = 0):
+    def __init__(self, ciclo: float = 0):
         super().__init__(ciclo)
         self.espiral: float = 0.0
 
@@ -570,7 +573,7 @@ class Gemeos(Chefe):
     RAIO_GEMEO = 20
     TRIANGULO = [(0, -22), (19, 11), (-19, 11)]
 
-    def __init__(self, ciclo: int = 0):
+    def __init__(self, ciclo: float = 0):
         super().__init__(ciclo)
         self.giro: float = 0.0
         self.separacao: float = 60.0
@@ -651,7 +654,7 @@ class Espectro(Chefe):
     DURACAO_FADE = 30
     DURACAO_OCULTO = 40
 
-    def __init__(self, ciclo: int = 0):
+    def __init__(self, ciclo: float = 0):
         super().__init__(ciclo)
         self.fase: int = self.VISIVEL
         self.tempo_fase: int = self.ritmo(150)
@@ -759,7 +762,7 @@ class Vespa(Chefe):
     ASA = [(6, -6), (34, -20), (38, -2), (10, 6)]
     FERRAO = (0, 30)
 
-    def __init__(self, ciclo: int = 0):
+    def __init__(self, ciclo: float = 0):
         super().__init__(ciclo)
         self.destino: tuple[float, float] = (LARGURA / 2, POSICAO_INICIAL_Y)
 
@@ -822,7 +825,7 @@ class Farol(Chefe):
     ESPESSURA_FEIXE = 8  # meia largura usada na colisao
     ALCANCE_FEIXE = 1300
 
-    def __init__(self, ciclo: int = 0):
+    def __init__(self, ciclo: float = 0):
         super().__init__(ciclo)
         self.fase: int = self.DESCANSO
         self.tempo_fase: int = self.ritmo(90)
