@@ -3,7 +3,7 @@ Chefes: um inimigo grande a cada NIVEIS_POR_CHEFE niveis.
 
 Cada chefe tem forma, cor e padrao de ataque proprios. Aqui ficam a base e os
 chefes 01-09; os chefes 10-20 e a ordem de aparicao (CHEFES) ficam em
-chefes_elite.py. Depois do ultimo a lista recomeca mais forte (`ciclo`).
+chefes_elite.py. Depois do ultimo os chefes sao sorteados, cada vez mais fortes (`ciclo`).
 """
 
 import math

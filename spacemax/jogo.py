@@ -107,6 +107,7 @@ class Jogo:
         self.particulas: list[Particula] = []
         self.ondas: list[Onda] = []
         self.chefe: Chefe | None = None
+        self.ultimo_chefe: Chefe | None = None
         self.projeteis: list[ProjetilChefe] = []
         self.chefes_derrotados: int = 0
         self.aviso_chefe: tuple[str, str, tuple[int, int, int]] = ("", "", COR_PRIMARIA)
@@ -172,10 +173,15 @@ class Jogo:
 
     # ------------------------------------------------------------------ chefes
     def iniciar_chefe(self):
-        """Chefe diferente a cada vez, cada um mais forte que o anterior; depois do ultimo a lista recomeca."""
+        """Chefe diferente a cada vez, cada um mais forte que o anterior; depois do ultimo vem um sorteado."""
         indice = self.chefes_derrotados
-        classe = CHEFES[indice % len(CHEFES)]
+        if indice < len(CHEFES):
+            classe = CHEFES[indice]
+        else:  # depois do nivel 100: chefe aleatorio, sem repetir o anterior
+            anterior = type(self.ultimo_chefe) if self.ultimo_chefe else None
+            classe = random.choice([c for c in CHEFES if c is not anterior])
         self.chefe = classe(ciclo=indice / len(CHEFES))
+        self.ultimo_chefe = self.chefe
         self.mostrar_aviso_chefe(f"ALERTA  ·  CHEFE {indice + 1:02d}", self.chefe.NOME, self.chefe.COR)
         self.tempo_aviso_nivel = 0
         tocar(self.sons, "alerta")

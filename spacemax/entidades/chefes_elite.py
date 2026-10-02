@@ -878,7 +878,7 @@ class Imperador(Chefe):
         pygame.draw.aaline(tela, (255, 255, 255), inicio, fim)
 
 
-# ordem de aparicao: um chefe a cada 5 niveis (nivel 5 ate 100); depois recomeca, mais forte
+# ordem de aparicao: um chefe a cada 5 niveis (nivel 5 ate 100); depois sorteados, mais fortes
 CHEFES = [
     Sentinela, Arpao, Orbita, Gemeos, Prisma, Espectro, Nucleo, Vespa, Farol, Bastiao,
     Serpente, Colmeia, Espelho, Pulsar, Hidra, Miragem, Ciclone, Tempestade, Singularidade, Imperador,

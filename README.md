@@ -165,8 +165,9 @@ uma vida; com escudo, a nave e empurrada para longe e causa dano.
 | 19 | 95 | Singularidade (laranja) | buraco negro | gravidade puxa a nave; jatos giratorios e aneis |
 | 20 | 100 | Imperador (dourado) | estrela de 8 pontas | alterna 3 fases: aneis e leque, laser giratorio, misseis e minas |
 
-Depois do 20o chefe a lista recomeca com os chefes mais fortes (mais vida,
-tiros mais rapidos e frequentes).
+Depois do 20o chefe (nivel 100) cada novo chefe e sorteado entre os 20, sem
+repetir o anterior, e fica cada vez mais forte (mais vida, tiros mais rapidos e
+frequentes).
 
 ## Elementos implementados
 
