@@ -12,8 +12,10 @@ Mapeamento:
     X / Y / LB                      -> troca de arma
     START                           -> pausa / continua
     START / A                       -> (re)comeca na tela inicial / game over
-    Nos menus: direcional / analogico escolhem, A confirma, Y alterna tela cheia,
-    SELECT (no pause) volta ao menu inicial
+    Nos menus: direcional / analogico escolhem, A confirma, B volta, Y alterna tela cheia,
+    SELECT (no pause) volta ao menu inicial, SELECT (no game over) escolhe outro modo
+
+Multiplayer local: na tela de jogadores cada um entra com o seu controle (A) ou teclado.
 """
 
 import os
@@ -52,8 +54,11 @@ BOTOES_CONTINUAR = (pygame.CONTROLLER_BUTTON_START, pygame.CONTROLLER_BUTTON_B)
 BOTAO_MENU = pygame.CONTROLLER_BUTTON_BACK
 BOTAO_TELA_CHEIA = pygame.CONTROLLER_BUTTON_Y
 BOTAO_CONFIRMAR = pygame.CONTROLLER_BUTTON_A
+BOTAO_VOLTAR = pygame.CONTROLLER_BUTTON_B
 BOTOES_MENU_ESQUERDA = (pygame.CONTROLLER_BUTTON_DPAD_LEFT,)
 BOTOES_MENU_DIREITA = (pygame.CONTROLLER_BUTTON_DPAD_RIGHT,)
+BOTOES_MENU_CIMA = (pygame.CONTROLLER_BUTTON_DPAD_UP,)
+BOTOES_MENU_BAIXO = (pygame.CONTROLLER_BUTTON_DPAD_DOWN,)
 
 
 class Controles:
@@ -62,7 +67,8 @@ class Controles:
     def __init__(self):
         controller.init()
         self.conectados: dict[int, controller.Controller] = {}
-        self.analogico_centrado: bool = True  # para o analogico mover 1 opcao por vez nos menus
+        # por eixo, para o analogico mover 1 opcao por vez nos menus
+        self.analogico_centrado: dict[int, bool] = {}
         # os controles ja pareados chegam como eventos CONTROLLERDEVICEADDED
 
     def processar_evento(self, evento):
@@ -86,50 +92,58 @@ class Controles:
             return ctrl.name
         return None
 
-    def navegacao_analogico(self, evento) -> int:
-        """-1/1 quando o analogico e empurrado para esquerda/direita (uma vez por empurrao)."""
-        if evento.type != pygame.CONTROLLERAXISMOTION or evento.axis != pygame.CONTROLLER_AXIS_LEFTX:
+    def nome_de(self, instance_id) -> str:
+        ctrl = self.conectados.get(instance_id)
+        return ctrl.name if ctrl else "CONTROLE"
+
+    def navegacao_analogico(self, evento, vertical=False) -> int:
+        """-1/1 quando o analogico e empurrado (esquerda/direita, ou cima/baixo) uma vez por empurrao."""
+        eixo = pygame.CONTROLLER_AXIS_LEFTY if vertical else pygame.CONTROLLER_AXIS_LEFTX
+        if evento.type != pygame.CONTROLLERAXISMOTION or evento.axis != eixo:
             return 0
         valor = evento.value / 32767
         if abs(valor) < ZONA_MORTA:
-            self.analogico_centrado = True
-        elif abs(valor) > LIMIAR_DIRECAO and self.analogico_centrado:
-            self.analogico_centrado = False
+            self.analogico_centrado[eixo] = True
+        elif abs(valor) > LIMIAR_DIRECAO and self.analogico_centrado.get(eixo, True):
+            self.analogico_centrado[eixo] = False
             return 1 if valor > 0 else -1
         return 0
 
     # ------------------------------------------------------------- leitura
+    # `id_controle`: None = qualquer controle conectado (modo solo); senao so aquele controle
+    def _controles(self, id_controle):
+        if id_controle is None:
+            return list(self.conectados.values())
+        return [self.conectados[id_controle]] if id_controle in self.conectados else []
+
     def _eixo(self, ctrl, eixo):
         valor = ctrl.get_axis(eixo) / 32767
         return 0.0 if abs(valor) < ZONA_MORTA else max(-1.0, min(1.0, valor))
 
-    def _botao(self, botao):
-        return any(ctrl.get_button(botao) for ctrl in self.conectados.values())
-
-    def giro(self):
+    def giro(self, id_controle=None):
         """-1 (esquerda) a 1 (direita); analogico da giro proporcional."""
         valor = 0.0
-        for ctrl in self.conectados.values():
+        for ctrl in self._controles(id_controle):
             valor += self._eixo(ctrl, pygame.CONTROLLER_AXIS_LEFTX)
             valor += ctrl.get_button(pygame.CONTROLLER_BUTTON_DPAD_RIGHT)
             valor -= ctrl.get_button(pygame.CONTROLLER_BUTTON_DPAD_LEFT)
         return max(-1.0, min(1.0, valor))
 
-    def acelerando(self):
+    def acelerando(self, id_controle=None):
         return any(
             ctrl.get_button(pygame.CONTROLLER_BUTTON_DPAD_UP)
             or self._eixo(ctrl, pygame.CONTROLLER_AXIS_LEFTY) < -LIMIAR_DIRECAO
             or self._eixo(ctrl, pygame.CONTROLLER_AXIS_TRIGGERRIGHT) > LIMIAR_GATILHO
-            for ctrl in self.conectados.values()
+            for ctrl in self._controles(id_controle)
         )
 
-    def freando(self):
+    def freando(self, id_controle=None):
         return any(
             ctrl.get_button(pygame.CONTROLLER_BUTTON_DPAD_DOWN)
             or self._eixo(ctrl, pygame.CONTROLLER_AXIS_LEFTY) > LIMIAR_DIRECAO
             or self._eixo(ctrl, pygame.CONTROLLER_AXIS_TRIGGERLEFT) > LIMIAR_GATILHO
-            for ctrl in self.conectados.values()
+            for ctrl in self._controles(id_controle)
         )
 
-    def atirando(self):
-        return any(self._botao(botao) for botao in BOTOES_TIRO)
+    def atirando(self, id_controle=None):
+        return any(ctrl.get_button(botao) for ctrl in self._controles(id_controle) for botao in BOTOES_TIRO)

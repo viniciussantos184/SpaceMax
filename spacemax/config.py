@@ -22,6 +22,7 @@ COR_PERIGO = (255, 84, 112)  # vermelho: vidas, colisao
 COR_ITEM = (255, 200, 87)  # ambar: escudo
 COR_CHAMA = (255, 150, 70)
 COR_EXPLOSIVO = (255, 110, 50)  # laranja: tiro explosivo
+COR_JOGADOR2 = (255, 138, 216)  # rosa: nave do jogador 2
 
 # ---------------------------------------------------------------------------
 # Nave
@@ -104,15 +105,26 @@ PONTOS_CHEFE = 1500
 DURACAO_AVISO_CHEFE = 3 * FPS
 
 # ---------------------------------------------------------------------------
+# Multiplayer local (os modos em si ficam em modos.py)
+# ---------------------------------------------------------------------------
+VIDAS_REVIVER = 2  # coop: vidas de quem e revivido pelo escudo do parceiro
+ROUNDS_PARA_VENCER = 2  # duelo: melhor de 3
+DURACAO_FIM_ROUND = 3 * FPS
+FATOR_NIVEL_COOP = 1.5  # coop: os dois somam pontos, entao cada nivel pede mais pontos
+
+# ---------------------------------------------------------------------------
 # Arquivos
 # ---------------------------------------------------------------------------
 PASTA_PROJETO = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-CAMINHO_RECORDE = os.path.join(PASTA_PROJETO, "recorde.txt")
+CAMINHO_RECORDE = os.path.join(PASTA_PROJETO, "recorde.txt")  # recorde do modo solo
 
 # ---------------------------------------------------------------------------
 # Estados do jogo
 # ---------------------------------------------------------------------------
 ESTADO_INICIO = "inicio"
+ESTADO_MODOS = "modos"  # escolha do modo de jogo
+ESTADO_LOBBY = "jogadores"  # multiplayer: cada jogador entra com seu controle / teclado
+ESTADO_ROUND = "round"  # intervalo entre os rounds do duelo
 ESTADO_JOGANDO = "jogando"
 ESTADO_GAMEOVER = "gameover"
 ESTADO_PAUSADO = "pausado"

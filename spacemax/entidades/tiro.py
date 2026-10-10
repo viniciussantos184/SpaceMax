@@ -38,6 +38,8 @@ class Tiro(EntidadeColidivel):
         vy = -math.cos(rad) * self.VELOCIDADE + vy_nave
         super().__init__(x, y, self.RAIO, vx, vy)
         self.vida: int = alcance or self.ALCANCE
+        self.dono: int = 0  # indice do jogador que atirou
+        self.cor: tuple[int, int, int] = COR_PRIMARIA
 
     def atualizar(self):
         self.mover()
@@ -52,7 +54,7 @@ class Tiro(EntidadeColidivel):
             self.x - self.vx / velocidade * self.COMPRIMENTO,
             self.y - self.vy / velocidade * self.COMPRIMENTO,
         )
-        grafico.linha(tela, COR_PRIMARIA, cauda, (self.x, self.y))
+        grafico.linha(tela, self.cor, cauda, (self.x, self.y))
 
 
 class TiroExplosivo(Tiro):

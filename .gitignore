@@ -12,4 +12,5 @@ __pycache__/
 
 # Arquivos gerados pelo jogo / ferramentas
 recorde.txt
+recorde_*.txt
 ferramentas/plantuml.jar

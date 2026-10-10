@@ -50,9 +50,19 @@ COR_JATO = (200, 235, 255)
 class Nave(EntidadeColidivel):
     RAIO = 13
 
-    def __init__(self):
-        super().__init__(LARGURA / 2, ALTURA / 2, self.RAIO)
-        self.angulo: float = 0.0  # graus; 0 = apontando para cima
+    def __init__(
+        self,
+        x: float = LARGURA / 2,
+        y: float = ALTURA / 2,
+        angulo: float = 0.0,
+        cor: tuple[int, int, int] = COR_PRIMARIA,
+        indice: int = 0,
+    ):
+        super().__init__(x, y, self.RAIO)
+        self.inicio: tuple[float, float, float] = (x, y, angulo)  # onde reaparece
+        self.cor: tuple[int, int, int] = cor
+        self.indice: int = indice  # jogador dono da nave (marca os tiros)
+        self.angulo: float = angulo  # graus; 0 = apontando para cima
         self.velocidade_angular: float = 0.0
         self.potencia: float = 0.0  # 0..1: rampa do motor principal
         self.propulsor_ligado: bool = False
@@ -172,14 +182,20 @@ class Nave(EntidadeColidivel):
             if self.municao_explosiva >= self.municao_max:
                 self.tempo_recarga_explosiva = self.recarga_explosiva
             self.municao_explosiva -= 1
-            return [TiroExplosivo(bico_x, bico_y, self.angulo, self.vx, self.vy)]
-        self.cooldown_atual = self.cooldown_tiro
-        # tiro multiplo: leque com 8 graus entre os tiros
-        quantidade = 1 + self.nivel_melhoria("multiplo")
-        return [
-            Tiro(bico_x, bico_y, self.angulo + (i - (quantidade - 1) / 2) * 8, self.vx, self.vy, self.alcance_tiro)
-            for i in range(quantidade)
-        ]
+            tiros = [TiroExplosivo(bico_x, bico_y, self.angulo, self.vx, self.vy)]
+        else:
+            self.cooldown_atual = self.cooldown_tiro
+            # tiro multiplo: leque com 8 graus entre os tiros
+            quantidade = 1 + self.nivel_melhoria("multiplo")
+            tiros = [
+                Tiro(bico_x, bico_y, self.angulo + (i - (quantidade - 1) / 2) * 8, self.vx, self.vy,
+                     self.alcance_tiro)
+                for i in range(quantidade)
+            ]
+        for tiro in tiros:
+            tiro.dono = self.indice
+            tiro.cor = self.cor
+        return tiros
 
     # ---------------------------------------------------------------- protecao
     @property
@@ -194,9 +210,8 @@ class Nave(EntidadeColidivel):
         self.clarao = max(self.clarao, 10)
 
     def reaparecer(self, frames_invencivel):
-        self.x, self.y = LARGURA / 2, ALTURA / 2
+        self.x, self.y, self.angulo = self.inicio
         self.vx = self.vy = 0.0
-        self.angulo = 0.0
         self.velocidade_angular = 0.0
         self.potencia = 0.0
         self.tempo_invencivel = frames_invencivel
@@ -241,7 +256,7 @@ class Nave(EntidadeColidivel):
         (bocal_x, bocal_y), = grafico.rotacionar([BOCAL_MOTOR], self.angulo, self.x, self.y)
         dx, dy = self.direcao()
         quantidade = 5 if self.tempo_dash > 0 else (1 if self.potencia < 0.6 else 2)
-        cor = COR_PRIMARIA if self.tempo_dash > 0 else COR_CHAMA
+        cor = self.cor if self.tempo_dash > 0 else COR_CHAMA
 
         rastro = []
         for _ in range(quantidade):
@@ -268,17 +283,17 @@ class Nave(EntidadeColidivel):
                 fantasma = grafico.rotacionar(
                     CASCO, self.angulo, self.x - self.vx * passo * 1.5, self.y - self.vy * passo * 1.5
                 )
-                pygame.draw.aalines(tela, grafico.misturar(COR_PRIMARIA, 0.12 * (4 - passo)), True, fantasma)
+                pygame.draw.aalines(tela, grafico.misturar(self.cor, 0.12 * (4 - passo)), True, fantasma)
 
         # clarao: o casco fica quase branco por alguns frames
-        cor_casco = COR_PRIMARIA
+        cor_casco = self.cor
         if self.clarao > 0:
             brilho = min(1.0, self.clarao / 10)
-            cor_casco = tuple(int(c + (255 - c) * brilho) for c in COR_PRIMARIA)
+            cor_casco = tuple(int(c + (255 - c) * brilho) for c in self.cor)
         grafico.contorno(tela, cor_casco, grafico.rotacionar(CASCO, self.angulo, self.x, self.y))
         for inicio, fim in DETALHES:
             a, b = grafico.rotacionar([inicio, fim], self.angulo, self.x, self.y)
-            pygame.draw.aaline(tela, grafico.misturar(COR_PRIMARIA, 0.55), a, b)
+            pygame.draw.aaline(tela, grafico.misturar(self.cor, 0.55), a, b)
 
         if self.tempo_escudo > 0:
             self.desenhar_escudo(tela)

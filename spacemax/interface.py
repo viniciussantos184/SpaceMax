@@ -1,5 +1,7 @@
 """HUD, avisos e telas de inicio / game over (estilo tech minimalista)."""
 
+from dataclasses import dataclass
+
 import pygame
 
 from . import grafico
@@ -9,6 +11,7 @@ from .config import (
     COR_EXPLOSIVO,
     COR_FUNDO,
     COR_ITEM,
+    COR_JOGADOR2,
     COR_PERIGO,
     COR_PRIMARIA,
     COR_SECUNDARIA,
@@ -87,6 +90,44 @@ def desenhar_hud(tela, fontes, pontuacao, recorde, nivel, vidas, setor, nome_gal
     )
 
 
+@dataclass
+class Placar:
+    """O que o HUD mostra de cada jogador no multiplayer."""
+
+    nome: str
+    cor: tuple[int, int, int]
+    rotulo: str
+    valor: str
+    vidas: int
+    vivo: bool
+    dica: str = ""
+
+
+def desenhar_hud_multi(tela, fontes, placares, setor, nome_galaxia, nivel, centro):
+    """HUD de dois jogadores: um em cada canto, informacoes da partida no centro.
+
+    `centro`: linhas extras (texto, cor) abaixo do nivel (tempo, round, total da equipe)."""
+    desenhar_cantoneiras(tela)
+    for i, placar in enumerate(placares):
+        direita = i == 1
+        x = LARGURA - MARGEM if direita else MARGEM
+        ancora = "topright" if direita else "topleft"
+        desenhar_texto(tela, fontes.pequena, f"{placar.nome}  ·  {placar.rotulo}", x, 20, placar.cor, ancora)
+        desenhar_texto(tela, fontes.grande, placar.valor, x, 34, ancora=ancora)
+        if placar.vivo:
+            for k in range(placar.vidas):
+                desenhar_icone_nave(tela, x + (-(8 + k * 22) if direita else 8 + k * 22), 84, placar.cor)
+        else:
+            desenhar_texto(tela, fontes.pequena, "ELIMINADO", x, 76, COR_PERIGO, ancora)
+            if placar.dica:
+                desenhar_texto(tela, fontes.pequena, placar.dica, x, 94, COR_APAGADA, ancora)
+
+    desenhar_texto(tela, fontes.pequena, f"SETOR {setor:02d}  ·  {nome_galaxia}", LARGURA / 2, 26, COR_APAGADA)
+    desenhar_texto(tela, fontes.media, f"NIVEL {nivel:02d}", LARGURA / 2, 48, COR_PRIMARIA)
+    for k, (texto, cor) in enumerate(centro):
+        desenhar_texto(tela, fontes.pequena, texto, LARGURA / 2, 74 + k * 18, cor)
+
+
 def desenhar_aviso(tela, fontes, subtitulo, titulo, tempo, duracao, cor=COR_PRIMARIA, y=ALTURA / 2 - 150):
     """Aviso central que aparece e some suavemente (nivel novo, galaxia nova, chefe)."""
     if tempo <= 0:
@@ -118,22 +159,29 @@ def desenhar_barra_chefe(tela, fontes, numero, nome, fracao, cor):
         pygame.draw.line(tela, COR_FUNDO, (tx, y), (tx, y + altura - 1))
 
 
-def desenhar_arma(tela, fontes, arma, explosiva, municao, municao_max, fracao_recarga):
-    """Canto inferior esquerdo: arma atual, tiros explosivos e barra de recarga."""
-    x, y = MARGEM, ALTURA - 72
-    desenhar_texto(tela, fontes.pequena, "ARMA  [Q]", x, y, COR_APAGADA, "topleft")
-    cor = COR_EXPLOSIVO if explosiva else COR_PRIMARIA
-    desenhar_texto(tela, fontes.media, arma, x, y + 16, cor, "topleft")
+def desenhar_arma(
+    tela, fontes, arma, explosiva, municao, municao_max, fracao_recarga,
+    lado="esq", cor_nave=COR_PRIMARIA, tecla="Q",
+):
+    """Canto inferior (esquerdo ou direito): arma atual, tiros explosivos e barra de recarga."""
+    direita = lado == "dir"
+    x, y = (LARGURA - MARGEM if direita else MARGEM), ALTURA - 72
+    ancora = "topright" if direita else "topleft"
+    sinal = -1 if direita else 1
+    desenhar_texto(tela, fontes.pequena, f"ARMA  [{tecla}]", x, y, COR_APAGADA, ancora)
+    cor = COR_EXPLOSIVO if explosiva else cor_nave
+    desenhar_texto(tela, fontes.media, arma, x, y + 16, cor, ancora)
 
     # municao explosiva: um circulo por tiro (cheio = disponivel)
     for i in range(municao_max):
-        centro = (x + 6 + i * 18, y + 48)
+        centro = (x + sinal * (6 + i * 18), y + 48)
         if i < municao:
             pygame.draw.circle(tela, COR_EXPLOSIVO, centro, 5)
         else:
             pygame.draw.circle(tela, grafico.misturar(COR_EXPLOSIVO, 0.4), centro, 5, 1)
     if municao < municao_max:
-        bx, largura = x + municao_max * 18 + 6, 70
+        largura = 70
+        bx = x + municao_max * 18 + 6 if not direita else x - municao_max * 18 - 6 - largura
         pygame.draw.rect(tela, grafico.misturar(COR_EXPLOSIVO, 0.35), (bx, y + 45, largura, 6), 1)
         pygame.draw.rect(tela, COR_EXPLOSIVO, (bx + 1, y + 46, int((largura - 2) * fracao_recarga), 4))
 
@@ -191,7 +239,7 @@ def desenhar_tela_inicio(tela, fontes, recorde, frame, nome_controle=None):
 
     _tabela_controles(tela, fontes, cy - 115, CONTROLES_INICIO)
 
-    _prompt_piscando(tela, fontes, "ESPACO / START PARA COMECAR", cy + 145, frame)
+    _prompt_piscando(tela, fontes, "ESPACO / START PARA ESCOLHER O MODO", cy + 145, frame)
     desenhar_texto(tela, fontes.pequena, f"RECORDE  {recorde:06d}", LARGURA / 2, cy + 182, COR_APAGADA)
     if nome_controle:
         desenhar_texto(tela, fontes.pequena, f"CONTROLE CONECTADO: {nome_controle}", LARGURA / 2, cy + 204, COR_ITEM)
@@ -199,7 +247,8 @@ def desenhar_tela_inicio(tela, fontes, recorde, frame, nome_controle=None):
         desenhar_texto(tela, fontes.pequena, "NENHUM CONTROLE CONECTADO", LARGURA / 2, cy + 204, COR_APAGADA)
 
 
-def desenhar_tela_pausa(tela, fontes, melhorias_nave, tela_cheia, frame):
+def desenhar_tela_pausa(tela, fontes, listas, tela_cheia, frame):
+    """`listas`: [(rotulo ou None, cor, melhorias)] com um item por jogador."""
     escurecer_tela(tela, 170)
     desenhar_cantoneiras(tela, COR_PRIMARIA, tamanho=22)
 
@@ -215,16 +264,22 @@ def desenhar_tela_pausa(tela, fontes, melhorias_nave, tela_cheia, frame):
     ])
 
     # melhorias ja escolhidas nesta partida
-    titulo = f"MELHORIAS DA NAVE  {total_escolhidas(melhorias_nave)}/{LIMITE_MELHORIAS}"
-    desenhar_texto(tela, fontes.pequena, espacar(titulo), LARGURA / 2, cy + 50, COR_PRIMARIA)
-    itens = [f"{POR_CHAVE[c].nome} {n}" for c, n in melhorias_nave.items() if c in POR_CHAVE]
-    if not itens:
-        itens = ["NENHUMA AINDA · A CADA 6 NIVEIS E A CADA CHEFE DERROTADO"]
-    for i in range(0, len(itens), 4):
-        linha = "   ·   ".join(itens[i:i + 4])
-        desenhar_texto(tela, fontes.pequena, linha, LARGURA / 2, cy + 76 + (i // 4) * 20, COR_SECUNDARIA)
+    y = cy + 50
+    for rotulo, cor, melhorias_nave in listas:
+        titulo = f"MELHORIAS DA NAVE  {total_escolhidas(melhorias_nave)}/{LIMITE_MELHORIAS}"
+        if rotulo:
+            titulo = f"{rotulo}  ·  {titulo}"
+        desenhar_texto(tela, fontes.pequena, espacar(titulo), LARGURA / 2, y, cor)
+        itens = [f"{POR_CHAVE[c].nome} {n}" for c, n in melhorias_nave.items() if c in POR_CHAVE]
+        if not itens:
+            itens = ["NENHUMA AINDA · A CADA 6 NIVEIS E A CADA CHEFE DERROTADO"]
+        por_linha = 4 if len(listas) == 1 else 3
+        for i in range(0, len(itens), por_linha):
+            linha = "   ·   ".join(itens[i:i + por_linha])
+            desenhar_texto(tela, fontes.pequena, linha, LARGURA / 2, y + 26 + (i // por_linha) * 20, COR_SECUNDARIA)
+        y += 26 + ((len(itens) - 1) // por_linha + 1) * 20 + 16
 
-    _prompt_piscando(tela, fontes, "P / START PARA CONTINUAR", cy + 170, frame)
+    _prompt_piscando(tela, fontes, "P / START PARA CONTINUAR", max(cy + 170, y + 24), frame)
 
 
 # ---------------------------------------------------------------------------
@@ -262,9 +317,12 @@ def _quebrar(texto, limite):
     return linhas + [atual] if atual else linhas
 
 
-def desenhar_tela_melhoria(tela, fontes, nivel, opcoes, niveis_atuais, selecionada, pronto):
+def desenhar_tela_melhoria(tela, fontes, nivel, opcoes, niveis_atuais, selecionada, pronto, quem=None):
+    """`quem`: (nome, cor) do jogador que escolhe, no multiplayer."""
     escurecer_tela(tela, 175)
     cy = ALTURA / 2
+    if quem:
+        desenhar_texto(tela, fontes.media, espacar(f"VEZ DO {quem[0]}"), LARGURA / 2, cy - 196, quem[1])
     numero = total_escolhidas(niveis_atuais) + 1
     desenhar_texto(
         tela, fontes.pequena, espacar(f"NIVEL {nivel:02d} · MELHORIA {numero}/{LIMITE_MELHORIAS}"),
@@ -333,3 +391,168 @@ def desenhar_tela_gameover(tela, fontes, pontuacao, recorde, nivel, setor, novo_
         COR_APAGADA,
     )
     _prompt_piscando(tela, fontes, "ESPACO / START PARA JOGAR NOVAMENTE", cy + 90, frame)
+    desenhar_texto(tela, fontes.pequena, "M / SELECT PARA ESCOLHER OUTRO MODO", LARGURA / 2, cy + 122, COR_APAGADA)
+
+
+def desenhar_tela_fim_multi(tela, fontes, modo_nome, titulo, cor, colunas, rodape, frame):
+    """Fim de partida com dois jogadores.
+
+    `colunas`: [(nome, cor, [linhas])], uma por jogador; `rodape`: linhas extras abaixo."""
+    escurecer_tela(tela, 170)
+    desenhar_cantoneiras(tela, cor, tamanho=22)
+
+    cy = ALTURA / 2
+    desenhar_texto(tela, fontes.pequena, espacar(f"FIM DE JOGO  ·  {modo_nome}"), LARGURA / 2, cy - 150, COR_APAGADA)
+    desenhar_texto(tela, fontes.grande, espacar(titulo), LARGURA / 2, cy - 115, cor)
+    pygame.draw.line(tela, cor, (LARGURA / 2 - 220, cy - 85), (LARGURA / 2 + 220, cy - 85))
+
+    for i, (nome, cor_jogador, linhas) in enumerate(colunas):
+        x = LARGURA / 2 + (-1 if i == 0 else 1) * 170
+        desenhar_texto(tela, fontes.media, nome, x, cy - 55, cor_jogador)
+        for k, linha in enumerate(linhas):
+            desenhar_texto(tela, fontes.pequena, linha, x, cy - 25 + k * 22, COR_SECUNDARIA)
+
+    for k, linha in enumerate(rodape):
+        desenhar_texto(tela, fontes.pequena, linha, LARGURA / 2, cy + 62 + k * 20, COR_APAGADA)
+
+    _prompt_piscando(tela, fontes, "ESPACO / START PARA JOGAR NOVAMENTE", cy + 140, frame)
+    desenhar_texto(tela, fontes.pequena, "M / SELECT PARA ESCOLHER OUTRO MODO", LARGURA / 2, cy + 172, COR_APAGADA)
+
+
+# ---------------------------------------------------------------------------
+# Escolha do modo de jogo
+# ---------------------------------------------------------------------------
+LARGURA_MODO, ALTURA_MODO, VAO_MODO, Y_MODOS = 620, 50, 6, 100
+
+CONTROLES_JOGADOR1 = "J1:  WASD GIRAR/ACELERAR/FREAR  ·  ESPACO TIRO  ·  CTRL-ESQ IMPULSO  ·  Q ARMA"
+CONTROLES_JOGADOR2 = "J2:  SETAS GIRAR/ACELERAR/FREAR  ·  SHIFT-DIR TIRO  ·  CTRL-DIR IMPULSO  ·  / ARMA"
+CONTROLES_SOLO = "SETAS OU WASD  ·  ESPACO TIRO  ·  CONTROL IMPULSO  ·  Q ARMA  ·  CLIQUE ATIRA"
+
+
+def _retangulos_modos(quantidade):
+    return [
+        pygame.Rect(
+            int((LARGURA - LARGURA_MODO) / 2), Y_MODOS + i * (ALTURA_MODO + VAO_MODO), LARGURA_MODO, ALTURA_MODO
+        )
+        for i in range(quantidade)
+    ]
+
+
+def modo_em(posicao, quantidade):
+    """Indice do modo sob o mouse (ou None)."""
+    for i, rect in enumerate(_retangulos_modos(quantidade)):
+        if rect.collidepoint(posicao):
+            return i
+    return None
+
+
+def desenhar_tela_modos(tela, fontes, modos, selecionado, quantidade_controles):
+    escurecer_tela(tela, 175)
+    desenhar_cantoneiras(tela, COR_PRIMARIA, tamanho=22)
+
+    desenhar_texto(tela, fontes.grande, espacar("ESCOLHA O MODO"), LARGURA / 2, 52, COR_SECUNDARIA)
+    pygame.draw.line(tela, COR_PRIMARIA, (LARGURA / 2 - 150, 78), (LARGURA / 2 + 150, 78))
+
+    for i, (modo, rect) in enumerate(zip(modos, _retangulos_modos(len(modos)))):
+        ativo = i == selecionado
+        cor = COR_PRIMARIA if ativo else COR_APAGADA
+        if ativo:
+            fundo = pygame.Surface(rect.size, pygame.SRCALPHA)
+            fundo.fill((*COR_PRIMARIA, 22))
+            tela.blit(fundo, rect.topleft)
+        pygame.draw.rect(tela, cor, rect, 2 if ativo else 1)
+        desenhar_texto(tela, fontes.pequena, f"[{i + 1}]", rect.left + 26, rect.centery, cor)
+        desenhar_texto(
+            tela, fontes.media, espacar(modo.nome), rect.left + 54, rect.top + 15,
+            COR_SECUNDARIA if ativo else COR_APAGADA, "midleft",
+        )
+        desenhar_texto(tela, fontes.pequena, modo.resumo, rect.left + 54, rect.top + 36, COR_APAGADA, "midleft")
+        desenhar_texto(
+            tela, fontes.pequena, f"{modo.jogadores}P", rect.right - 20, rect.centery,
+            COR_ITEM if modo.multi else COR_APAGADA, "midright",
+        )
+
+    modo = modos[selecionado]
+    y = Y_MODOS + len(modos) * (ALTURA_MODO + VAO_MODO) + 18
+    for k, linha in enumerate(modo.regras):
+        desenhar_texto(tela, fontes.pequena, linha, LARGURA / 2, y + k * 18, COR_SECUNDARIA)
+    y += len(modo.regras) * 18 + 14
+    if modo.multi:
+        desenhar_texto(tela, fontes.pequena, CONTROLES_JOGADOR1, LARGURA / 2, y, COR_PRIMARIA)
+        desenhar_texto(tela, fontes.pequena, CONTROLES_JOGADOR2, LARGURA / 2, y + 18, COR_JOGADOR2)
+        if quantidade_controles:
+            texto = f"CONTROLES CONECTADOS: {quantidade_controles}  ·  NA PROXIMA TELA CADA UM ESCOLHE TECLADO OU CONTROLE"
+        else:
+            texto = "NENHUM CONTROLE CONECTADO  ·  DA PARA JOGAR OS DOIS NO MESMO TECLADO OU COM CONTROLES"
+        desenhar_texto(
+            tela, fontes.pequena, texto, LARGURA / 2, y + 40, COR_ITEM if quantidade_controles else COR_APAGADA
+        )
+    else:
+        desenhar_texto(tela, fontes.pequena, CONTROLES_SOLO, LARGURA / 2, y, COR_PRIMARIA)
+
+    desenhar_texto(
+        tela, fontes.pequena, "CIMA / BAIXO ESCOLHER   ·   ENTER / ESPACO / A CONFIRMAR   ·   ESC / B VOLTAR",
+        LARGURA / 2, ALTURA - 34, COR_APAGADA,
+    )
+
+
+# ---------------------------------------------------------------------------
+# Escolha dos jogadores (multiplayer): cada um entra com seu controle ou teclado
+# ---------------------------------------------------------------------------
+LARGURA_PAINEL, ALTURA_PAINEL, Y_PAINEL = 360, 210, 120
+
+
+def desenhar_tela_jogadores(tela, fontes, modo_nome, vagas, controles_livres, frame):
+    """`vagas`: dispositivo de cada jogador (None = vazia); `controles_livres`: nomes dos controles
+    conectados que ainda nao entraram."""
+    escurecer_tela(tela, 175)
+    desenhar_cantoneiras(tela, COR_PRIMARIA, tamanho=22)
+
+    desenhar_texto(tela, fontes.grande, espacar("ESCOLHA OS JOGADORES"), LARGURA / 2, 52, COR_SECUNDARIA)
+    pygame.draw.line(tela, COR_PRIMARIA, (LARGURA / 2 - 150, 78), (LARGURA / 2 + 150, 78))
+    desenhar_texto(tela, fontes.pequena, espacar(modo_nome), LARGURA / 2, 96, COR_APAGADA)
+
+    cores = (COR_PRIMARIA, COR_JOGADOR2)
+    for i, (vaga, cor) in enumerate(zip(vagas, cores)):
+        cx = LARGURA / 2 + (-1 if i == 0 else 1) * 200
+        rect = pygame.Rect(0, Y_PAINEL, LARGURA_PAINEL, ALTURA_PAINEL)
+        rect.centerx = int(cx)
+        ocupada = vaga is not None
+        pygame.draw.rect(tela, cor if ocupada else COR_APAGADA, rect, 2 if ocupada else 1)
+        if ocupada:
+            fundo = pygame.Surface(rect.size, pygame.SRCALPHA)
+            fundo.fill((*cor, 20))
+            tela.blit(fundo, rect.topleft)
+
+        desenhar_icone_nave(tela, cx, rect.top + 56, cor if ocupada else COR_APAGADA, escala=1.6)
+        desenhar_texto(tela, fontes.media, espacar(f"JOGADOR {i + 1}"), cx, rect.top + 108, cor if ocupada else COR_APAGADA)
+        if ocupada:
+            desenhar_texto(tela, fontes.pequena, vaga.nome[:38], cx, rect.top + 140, COR_SECUNDARIA)
+            desenhar_texto(tela, fontes.media, espacar("PRONTO"), cx, rect.top + 172, cor)
+        elif (frame // 30) % 2 == 0:
+            desenhar_texto(tela, fontes.pequena, "APERTE  A  (CONTROLE)", cx, rect.top + 146, COR_SECUNDARIA)
+            desenhar_texto(tela, fontes.pequena, "ESPACO / SHIFT-DIR  (TECLADO)", cx, rect.top + 168, COR_APAGADA)
+
+    y = Y_PAINEL + ALTURA_PAINEL + 30
+    ajuda = [
+        ("CONTROLE", "A ENTRA   ·   DIRECIONAL ESQ / DIR ESCOLHE J1 OU J2   ·   B SAI", COR_ITEM),
+        ("TECLADO  WASD", "ESPACO ENTRA   ·   A / D ESCOLHE J1 OU J2   ·   S SAI", COR_PRIMARIA),
+        ("TECLADO  SETAS", "SHIFT-DIR ENTRA   ·   SETA ESQ / DIR ESCOLHE J1 OU J2   ·   SETA BAIXO SAI", COR_JOGADOR2),
+    ]
+    for k, (rotulo, texto, cor) in enumerate(ajuda):
+        desenhar_texto(tela, fontes.pequena, rotulo, LARGURA / 2 - 300, y + k * 22, cor, "midleft")
+        desenhar_texto(tela, fontes.pequena, texto, LARGURA / 2 - 170, y + k * 22, COR_SECUNDARIA, "midleft")
+
+    if controles_livres:
+        texto = "CONTROLES CONECTADOS: " + "  ·  ".join(nome[:24] for nome in controles_livres)
+    elif any(vaga is not None and vaga.controle is not None for vaga in vagas):
+        texto = "CONTROLES CONECTADOS JA ESTAO NA PARTIDA"
+    else:
+        texto = "NENHUM CONTROLE CONECTADO  ·  CONECTE POR USB / BLUETOOTH"
+    desenhar_texto(tela, fontes.pequena, texto, LARGURA / 2, y + 90, COR_ITEM if controles_livres else COR_APAGADA)
+
+    if all(vaga is not None for vaga in vagas):
+        _prompt_piscando(tela, fontes, "ENTER / START PARA COMECAR", ALTURA - 76, frame)
+    else:
+        desenhar_texto(tela, fontes.media, "AGUARDANDO OS DOIS JOGADORES", LARGURA / 2, ALTURA - 76, COR_APAGADA)
+    desenhar_texto(tela, fontes.pequena, "ESC / B VOLTAR", LARGURA / 2, ALTURA - 34, COR_APAGADA)

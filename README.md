@@ -17,7 +17,36 @@ viaje por galaxias diferentes a cada 3 niveis.
 - **ESC**: sai do jogo
 - **P, ENTER ou ESC**: pausa (no pause, ESC volta ao menu inicial)
 - **F11 ou ALT+ENTER**: tela cheia
-- Na tela inicial ou de Game Over, pressione ESPACO/clique para (re)comecar
+- Na tela inicial, ESPACO/clique abre a escolha de modo (setas ou 1-5, ENTER para iniciar)
+- No Game Over, ESPACO/clique joga o mesmo modo de novo e **M** escolhe outro modo
+
+## Modos de jogo (multiplayer local)
+
+| # | Modo | Jogadores | Como funciona |
+| --- | --- | --- | --- |
+| 1 | Solo | 1 | Voce contra os asteroides e os 20 chefes (recorde em `recorde.txt`) |
+| 2 | Cooperativo | 2 | Os dois contra os asteroides e os chefes. Cada um tem 5 vidas e as proprias melhorias; os pontos somam. Quem zera as vidas fica fora, e **um escudo coletado pelo parceiro revive o eliminado** (com 2 vidas). Game over quando os dois caem (recorde da equipe em `recorde_coop.txt`) |
+| 3 | Duelo | 2 | Os tiros e as explosoes ferem o outro jogador; os asteroides atrapalham os dois. 3 vidas por round, vence o round quem sobrar e a partida quem ganhar 2 rounds. Escudo bloqueia tiros e a invencibilidade apos ser atingido deixa os tiros passarem |
+| 4 | Corrida de pontos | 2 | Os dois quebram asteroides e os pontos vao para quem acertou o tiro. Vence quem tiver mais pontos em 3 minutos. Quem perde as 3 vidas fica fora; se o ultimo vivo ja estiver na frente, a partida acaba na hora |
+| 5 | Sobrevivencia | 2 | Asteroides cada vez mais rapidos (a cada 12 s), sem fogo amigo. Vence quem durar mais: quem ainda estiver vivo quando o outro perder as 3 vidas |
+
+Nos modos de dois jogadores o chefe e os misseis miram a nave viva mais proxima. Chefes e
+melhorias existem so no Solo e no Cooperativo (nos modos competitivos todo mundo luta com a
+mesma nave). O nivel sobe com o tempo nos modos competitivos.
+
+### Teclas dos dois jogadores (mesmo teclado, ou com controles: veja abaixo)
+
+| Acao | Jogador 1 (ciano) | Jogador 2 (rosa) |
+| --- | --- | --- |
+| Girar | A / D | Seta esquerda / direita |
+| Acelerar / frear | W / S | Seta cima / baixo |
+| Atirar | ESPACO | SHIFT direito |
+| Impulso | CONTROL esquerdo | CONTROL direito |
+| Trocar arma | Q ou TAB | / |
+
+Pausa (P, ENTER ou ESC) e tela cheia (F11) valem para os dois. No multiplayer o mouse
+nao atira. No game over o ESPACO so reinicia depois de ~1 segundo, para quem estava
+atirando nao reiniciar sem querer.
 
 ### Controle (USB ou bluetooth)
 
@@ -34,6 +63,26 @@ funciona, inclusive conectado com o jogo ja aberto:
 - Na escolha de melhoria: direcional/analogico escolhe a carta e **A** confirma
 
 O jogo pausa sozinho se o controle desconectar ou a janela perder o foco.
+
+Na escolha de modo: direcional/analogico escolhem, **A** ou **START** confirmam e **B** volta.
+No Game Over, **SELECT** escolhe outro modo.
+
+#### Tela de jogadores (modos de 2 jogadores)
+
+Depois de escolher um modo de dois jogadores aparece a tela **ESCOLHA OS JOGADORES**: cada um
+entra com o proprio controle ou teclado e escolhe se e o jogador 1 (ciano) ou o 2 (rosa).
+Da para jogar controle x controle, controle x teclado ou os dois no mesmo teclado.
+
+| | Entrar | Escolher J1 / J2 | Sair |
+| --- | --- | --- | --- |
+| Controle | **A** (na primeira vaga livre) | direcional ou analogico esquerda / direita | **B** |
+| Teclado WASD | **ESPACO** | **A** / **D** | **S** |
+| Teclado setas | **SHIFT direito** | **seta esquerda** / **seta direita** | **seta baixo** |
+
+Com os dois prontos, **ENTER** ou **START** comecam. Quem escolhe uma vaga ocupada troca de
+lugar com quem estava nela. ESC ou B (sem vaga) voltam. As escolhas ficam guardadas para
+"jogar de novo"; se um controle desconectar, a tela de jogadores abre de novo. Cada controle
+manda so na nave de quem o escolheu (na partida, **X**, **Y** ou **LB** trocam a arma).
 
 A nave, os tiros e os asteroides atravessam as bordas da tela e reaparecem do
 lado oposto. Os asteroides chegam por todos os lados.
@@ -185,6 +234,7 @@ frequentes).
 - Efeitos sonoros gerados por codigo (sem precisar de arquivos de audio)
 - Faiscas de explosao, ondas de choque e tremor de tela (ao pegar escudo, bater com escudo e ser atingido)
 - Vinte chefes diferentes (ate o nivel 100), um a cada 5 niveis, com barra de vida e aviso de entrada
+- Multiplayer local para 2 jogadores no mesmo teclado ou com 2 controles: modo cooperativo (com revive) e modos competitivos (duelo, corrida de pontos e sobrevivencia)
 
 ## Estrutura do projeto
 
@@ -200,6 +250,8 @@ SpaceMax/
 └── spacemax/
     ├── config.py           # constantes: tela, paleta, fisica, dificuldade
     ├── jogo.py             # classe Jogo: loop principal, regras e colisoes
+    ├── modos.py            # modos de jogo (solo, coop, duelo, corrida, sobrevivencia) e suas regras
+    ├── jogador.py          # Jogador: nave, teclas, vidas e pontos de cada um
     ├── galaxias.py         # planos de fundo: um setor (cenario) a cada 3 niveis
     ├── grafico.py          # primitivas de desenho vetorial (linhas com brilho)
     ├── interface.py        # HUD, avisos, telas de inicio, pause, melhoria e Game Over
