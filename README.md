@@ -34,6 +34,20 @@ Nos modos de dois jogadores o chefe e os misseis miram a nave viva mais proxima.
 melhorias existem so no Solo e no Cooperativo (nos modos competitivos todo mundo luta com a
 mesma nave). O nivel sobe com o tempo nos modos competitivos.
 
+### Dificuldade
+
+Na tela de modos, **ESQUERDA / DIREITA** (ou clique) escolhe a dificuldade, que vale para todos os modos:
+
+| Dificuldade | Vidas | Asteroides | Chefes | Escudos |
+| --- | --- | --- | --- | --- |
+| Facil | +2 | 30% mais lentos, chegam bem mais espacados e em menor numero | 55% da vida, atacam menos e com projeteis mais lentos | mais frequentes |
+| Medio (padrao) | +1 | 15% mais lentos e um pouco mais espacados | 80% da vida, um pouco menos agressivos | um pouco mais frequentes |
+| Dificil | normal | o jogo original | o jogo original | normal |
+
+A invencibilidade apos perder uma vida tambem dura mais no Facil e no Medio. O recorde e
+separado por dificuldade: o Dificil continua em `recorde.txt` / `recorde_coop.txt`, e os outros
+ficam em `recorde_solo_facil.txt`, `recorde_coop_medio.txt` etc.
+
 ### Teclas dos dois jogadores (mesmo teclado, ou com controles: veja abaixo)
 
 | Acao | Jogador 1 (ciano) | Jogador 2 (rosa) |
@@ -255,6 +269,7 @@ SpaceMax/
     ├── config.py           # constantes: tela, paleta, fisica, dificuldade
     ├── jogo.py             # classe Jogo: loop principal, regras e colisoes
     ├── modos.py            # modos de jogo (solo, coop, duelo, corrida, sobrevivencia) e suas regras
+    ├── dificuldades.py     # niveis de dificuldade (facil, medio, dificil) e seus multiplicadores
     ├── jogador.py          # Jogador: nave, teclas, vidas e pontos de cada um
     ├── galaxias.py         # planos de fundo: um setor (cenario) a cada 3 niveis
     ├── grafico.py          # primitivas de desenho vetorial (linhas com brilho)

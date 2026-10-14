@@ -225,7 +225,7 @@ def _prompt_piscando(tela, fontes, texto, y, frame):
         desenhar_texto(tela, fontes.media, f"[  {texto}  ]", LARGURA / 2, y, COR_PRIMARIA)
 
 
-def desenhar_tela_inicio(tela, fontes, recorde, frame, nome_controle=None):
+def desenhar_tela_inicio(tela, fontes, recorde, frame, nome_controle=None, dificuldade=""):
     escurecer_tela(tela, 160)
     desenhar_cantoneiras(tela, COR_PRIMARIA, tamanho=22)
 
@@ -240,7 +240,8 @@ def desenhar_tela_inicio(tela, fontes, recorde, frame, nome_controle=None):
     _tabela_controles(tela, fontes, cy - 115, CONTROLES_INICIO)
 
     _prompt_piscando(tela, fontes, "ESPACO / START PARA ESCOLHER O MODO", cy + 145, frame)
-    desenhar_texto(tela, fontes.pequena, f"RECORDE  {recorde:06d}", LARGURA / 2, cy + 182, COR_APAGADA)
+    rotulo = f"RECORDE {dificuldade}" if dificuldade else "RECORDE"
+    desenhar_texto(tela, fontes.pequena, f"{rotulo}  {recorde:06d}", LARGURA / 2, cy + 182, COR_APAGADA)
     if nome_controle:
         desenhar_texto(tela, fontes.pequena, f"CONTROLE CONECTADO: {nome_controle}", LARGURA / 2, cy + 204, COR_ITEM)
     else:
@@ -371,7 +372,7 @@ def desenhar_tela_melhoria(tela, fontes, nivel, opcoes, niveis_atuais, seleciona
     )
 
 
-def desenhar_tela_gameover(tela, fontes, pontuacao, recorde, nivel, setor, novo_recorde, frame):
+def desenhar_tela_gameover(tela, fontes, pontuacao, recorde, nivel, setor, novo_recorde, frame, dificuldade=""):
     escurecer_tela(tela, 170)
     desenhar_cantoneiras(tela, COR_PERIGO, tamanho=22)
 
@@ -390,6 +391,8 @@ def desenhar_tela_gameover(tela, fontes, pontuacao, recorde, nivel, setor, novo_
         tela, fontes.pequena, f"NIVEL {nivel:02d}   ·   SETOR {setor:02d}", LARGURA / 2, cy + 24,
         COR_APAGADA,
     )
+    if dificuldade:
+        desenhar_texto(tela, fontes.pequena, f"DIFICULDADE  {dificuldade}", LARGURA / 2, cy + 46, COR_APAGADA)
     _prompt_piscando(tela, fontes, "ESPACO / START PARA JOGAR NOVAMENTE", cy + 90, frame)
     desenhar_texto(tela, fontes.pequena, "M / SELECT PARA ESCOLHER OUTRO MODO", LARGURA / 2, cy + 122, COR_APAGADA)
 
@@ -423,6 +426,7 @@ def desenhar_tela_fim_multi(tela, fontes, modo_nome, titulo, cor, colunas, rodap
 # Escolha do modo de jogo
 # ---------------------------------------------------------------------------
 LARGURA_MODO, ALTURA_MODO, VAO_MODO, Y_MODOS = 620, 50, 6, 100
+LARGURA_DIFICULDADE, ALTURA_DIFICULDADE, VAO_DIFICULDADE, Y_DIFICULDADE = 120, 26, 10, ALTURA - 96
 
 CONTROLES_JOGADOR1 = "J1:  WASD GIRAR/ACELERAR/FREAR  ·  ESPACO TIRO  ·  CTRL-ESQ IMPULSO  ·  Q ARMA"
 CONTROLES_JOGADOR2 = "J2:  SETAS GIRAR/ACELERAR/FREAR  ·  SHIFT-DIR TIRO  ·  CTRL-DIR IMPULSO  ·  / ARMA"
@@ -438,6 +442,23 @@ def _retangulos_modos(quantidade):
     ]
 
 
+def _retangulos_dificuldades(quantidade):
+    total = quantidade * LARGURA_DIFICULDADE + (quantidade - 1) * VAO_DIFICULDADE
+    x0 = int(LARGURA / 2 + 60 - total / 2)  # deslocado para a direita: o rotulo fica a esquerda
+    return [
+        pygame.Rect(x0 + i * (LARGURA_DIFICULDADE + VAO_DIFICULDADE), Y_DIFICULDADE, LARGURA_DIFICULDADE, ALTURA_DIFICULDADE)
+        for i in range(quantidade)
+    ]
+
+
+def dificuldade_em(posicao, quantidade):
+    """Indice da dificuldade sob o mouse (ou None)."""
+    for i, rect in enumerate(_retangulos_dificuldades(quantidade)):
+        if rect.collidepoint(posicao):
+            return i
+    return None
+
+
 def modo_em(posicao, quantidade):
     """Indice do modo sob o mouse (ou None)."""
     for i, rect in enumerate(_retangulos_modos(quantidade)):
@@ -446,7 +467,7 @@ def modo_em(posicao, quantidade):
     return None
 
 
-def desenhar_tela_modos(tela, fontes, modos, selecionado, quantidade_controles):
+def desenhar_tela_modos(tela, fontes, modos, selecionado, quantidade_controles, dificuldades, dificuldade):
     escurecer_tela(tela, 175)
     desenhar_cantoneiras(tela, COR_PRIMARIA, tamanho=22)
 
@@ -490,9 +511,29 @@ def desenhar_tela_modos(tela, fontes, modos, selecionado, quantidade_controles):
     else:
         desenhar_texto(tela, fontes.pequena, CONTROLES_SOLO, LARGURA / 2, y, COR_PRIMARIA)
 
+    retangulos = _retangulos_dificuldades(len(dificuldades))
     desenhar_texto(
-        tela, fontes.pequena, "CIMA / BAIXO ESCOLHER   ·   ENTER / ESPACO / A CONFIRMAR   ·   ESC / B VOLTAR",
-        LARGURA / 2, ALTURA - 34, COR_APAGADA,
+        tela, fontes.pequena, espacar("DIFICULDADE"), retangulos[0].left - 18, retangulos[0].centery,
+        COR_SECUNDARIA, "midright",
+    )
+    for i, (opcao, rect) in enumerate(zip(dificuldades, retangulos)):
+        ativa = i == dificuldade
+        cor = COR_ITEM if ativa else COR_APAGADA
+        if ativa:
+            fundo = pygame.Surface(rect.size, pygame.SRCALPHA)
+            fundo.fill((*COR_ITEM, 26))
+            tela.blit(fundo, rect.topleft)
+        pygame.draw.rect(tela, cor, rect, 2 if ativa else 1)
+        desenhar_texto(tela, fontes.pequena, espacar(opcao.nome), rect.centerx, rect.centery, cor)
+    desenhar_texto(
+        tela, fontes.pequena, dificuldades[dificuldade].resumo, LARGURA / 2, Y_DIFICULDADE + ALTURA_DIFICULDADE + 14,
+        COR_APAGADA,
+    )
+
+    desenhar_texto(
+        tela, fontes.pequena,
+        "CIMA / BAIXO MODO   ·   ESQ / DIR DIFICULDADE   ·   ENTER / ESPACO / A CONFIRMAR   ·   ESC / B VOLTAR",
+        LARGURA / 2, ALTURA - 26, COR_APAGADA,
     )
 
 

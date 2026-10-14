@@ -76,6 +76,7 @@ from .config import (
 )
 from .entidades import CHEFES, Estrela, Item, Meteoro, Nave, Onda, Particula, ProjetilChefe, Tiro
 from .entidades.chefes import Chefe
+from .dificuldades import DIFICULDADE_PADRAO, DIFICULDADES, Dificuldade, chave_recorde
 from .galaxias import PlanoDeFundo, indice_galaxia
 from .jogador import TECLADO_JOGADOR1, TECLADO_JOGADOR2, TECLAS_SOLO, Dispositivo, Jogador
 from .modos import MODOS, Modo
@@ -110,7 +111,12 @@ class Jogo:
         self.sons: dict[str, pygame.mixer.Sound] | None = criar_sons()
         self.indice_modo: int = 0
         self.modo: Modo = MODOS[self.indice_modo]
-        self.recordes: dict[str, int] = {m.chave: carregar_recorde(m.chave) for m in MODOS if m.recorde}
+        self.indice_dificuldade: int = DIFICULDADE_PADRAO
+        self.dificuldade: Dificuldade = DIFICULDADES[self.indice_dificuldade]
+        # recordes por modo e dificuldade (chave de chave_recorde)
+        self.recordes: dict[str, int] = {
+            chave_recorde(m, d): carregar_recorde(chave_recorde(m, d)) for m in MODOS if m.recorde for d in DIFICULDADES
+        }
         # multiplayer: com o que cada jogador joga (None = vaga vazia na tela de jogadores)
         self.vagas: list[Dispositivo | None] = [None, None]
         self.fundo: PlanoDeFundo = PlanoDeFundo()
@@ -125,8 +131,19 @@ class Jogo:
 
     @property
     def recorde(self) -> int:
-        """Recorde do modo atual (0 nos modos competitivos, que nao tem recorde)."""
-        return self.recordes.get(self.modo.chave, 0)
+        """Recorde do modo e da dificuldade atuais (0 nos modos competitivos, que nao tem recorde)."""
+        return self.recordes.get(chave_recorde(self.modo, self.dificuldade), 0)
+
+    @property
+    def vidas_maximas(self) -> int:
+        return VIDAS_MAXIMAS + self.dificuldade.vidas_extra
+
+    @property
+    def duracao_invencivel(self) -> int:
+        return int(DURACAO_INVENCIVEL * self.dificuldade.invencivel)
+
+    def intervalo_escudo(self) -> int:
+        return int(random.randint(*INTERVALO_ESCUDO) * self.dificuldade.intervalo_escudo)
 
     @property
     def vivos(self) -> list[Jogador]:
@@ -155,7 +172,7 @@ class Jogo:
         self.tempo_aviso_nivel: int = 0
         self.tempo_aviso_galaxia: int = DURACAO_AVISO_GALAXIA
         self.frames_ate_proximo_spawn: int = INTERVALO_SPAWN_INICIAL
-        self.tempo_ate_proximo_item: int = random.randint(*INTERVALO_ESCUDO) // 2
+        self.tempo_ate_proximo_item: int = self.intervalo_escudo() // 2
         self.jogador_melhoria: Jogador | None = None  # de quem e a escolha de melhoria aberta
         self.opcoes_melhoria: list[melhorias.Melhoria] = []
         self.selecao_melhoria: int = 0
@@ -190,10 +207,13 @@ class Jogo:
             dispositivos = [Dispositivo("SOLO", TECLAS_SOLO)]
         jogadores = []
         for indice, dispositivo in enumerate(dispositivos):
-            jogador = Jogador(indice, self.criar_nave(indice), dispositivo.teclas, self.modo.vidas, dispositivo.controle)
+            jogador = Jogador(indice, self.criar_nave(indice), dispositivo.teclas, self.vidas_iniciais(), dispositivo.controle)
             jogador.nave.reaparecer(DURACAO_INVENCIVEL // 2)
             jogadores.append(jogador)
         return jogadores
+
+    def vidas_iniciais(self) -> int:
+        return self.modo.vidas + self.dificuldade.vidas_extra
 
     def nome_jogador(self, jogador) -> str:
         return f"JOGADOR {jogador.indice + 1}"
@@ -240,14 +260,15 @@ class Jogo:
 
     def velocidade_asteroide(self):
         velocidade = VELOCIDADE_ASTEROIDE_INICIAL + (self.nivel - 1) * AUMENTO_VELOCIDADE_POR_NIVEL
-        return min(VELOCIDADE_ASTEROIDE_TETO, velocidade)
+        return min(VELOCIDADE_ASTEROIDE_TETO, velocidade) * self.dificuldade.velocidade_asteroide
 
     def intervalo_spawn(self):
         intervalo = INTERVALO_SPAWN_INICIAL - (self.nivel - 1) * REDUCAO_SPAWN_POR_NIVEL
-        return max(INTERVALO_SPAWN_MINIMO, intervalo)
+        return int(max(INTERVALO_SPAWN_MINIMO, intervalo) * self.dificuldade.intervalo_spawn)
 
     def lancar_onda(self):
         quantidade = min(MAX_ASTEROIDES_ONDA, ASTEROIDES_INICIAIS + (self.nivel - 1) // 2)
+        quantidade = max(2, round(quantidade * self.dificuldade.asteroides))
         for _ in range(quantidade):
             self.meteoros.append(Meteoro.na_borda(self.velocidade_asteroide()))
 
@@ -260,6 +281,9 @@ class Jogo:
         else:  # depois do nivel 100: chefe aleatorio, sem repetir o anterior
             anterior = type(self.ultimo_chefe) if self.ultimo_chefe else None
             classe = random.choice([c for c in CHEFES if c is not anterior])
+        Chefe.ajuste_vida = self.dificuldade.vida_chefe
+        Chefe.ajuste_ritmo = self.dificuldade.ritmo_chefe
+        Chefe.ajuste_velocidade = self.dificuldade.velocidade_projetil
         self.chefe = classe(ciclo=indice / len(CHEFES))
         self.ultimo_chefe = self.chefe
         self.mostrar_aviso_chefe(f"ALERTA  ·  CHEFE {indice + 1:02d}", self.chefe.NOME, self.chefe.COR)
@@ -343,7 +367,7 @@ class Jogo:
         jogador = next((j for j in self.vivos if j.melhorias_pendentes > 0), None)
         if jogador is None:
             return
-        opcoes = melhorias.sortear_opcoes(jogador.nave.melhorias, jogador.vidas < VIDAS_MAXIMAS)
+        opcoes = melhorias.sortear_opcoes(jogador.nave.melhorias, jogador.vidas < self.vidas_maximas)
         if not opcoes:  # tudo no maximo
             jogador.melhorias_pendentes = 0
             return
@@ -365,7 +389,7 @@ class Jogo:
         melhoria = self.opcoes_melhoria[indice]
         jogador.nave.aplicar_melhoria(melhoria.chave)
         if melhoria.chave == "reparo":
-            jogador.vidas = min(VIDAS_MAXIMAS, jogador.vidas + 1)
+            jogador.vidas = min(self.vidas_maximas, jogador.vidas + 1)
         jogador.melhorias_pendentes -= 1
         self.estado = ESTADO_JOGANDO
         x, y = jogador.nave.x, jogador.nave.y
@@ -380,6 +404,10 @@ class Jogo:
     # ------------------------------------------------------------------- modos
     def mover_modo(self, direcao):
         self.indice_modo = (self.indice_modo + direcao) % len(MODOS)
+        tocar(self.sons, "selecao")
+
+    def mover_dificuldade(self, direcao):
+        self.indice_dificuldade = (self.indice_dificuldade + direcao) % len(DIFICULDADES)
         tocar(self.sons, "selecao")
 
     def abrir_menu_modos(self):
@@ -479,6 +507,9 @@ class Jogo:
                 direcao = self.controles.navegacao_analogico(evento, vertical=True)
                 if direcao:
                     self.mover_modo(direcao)
+                direcao = self.controles.navegacao_analogico(evento)
+                if direcao:
+                    self.mover_dificuldade(direcao)
             elif self.estado == ESTADO_LOBBY:
                 direcao = self.controles.navegacao_analogico(evento)
                 if direcao:  # analogico para a esquerda = jogador 1, para a direita = jogador 2
@@ -530,6 +561,10 @@ class Jogo:
                 self.mover_modo(-1)
             elif tecla in (pygame.K_DOWN, pygame.K_s):
                 self.mover_modo(1)
+            elif tecla in (pygame.K_LEFT, pygame.K_a):
+                self.mover_dificuldade(-1)
+            elif tecla in (pygame.K_RIGHT, pygame.K_d):
+                self.mover_dificuldade(1)
             elif tecla in TECLAS_MODO:
                 self.indice_modo = TECLAS_MODO[tecla]
                 tocar(self.sons, "selecao")
@@ -582,6 +617,11 @@ class Jogo:
             if indice is not None:
                 self.escolher_melhoria(indice)
         elif self.estado == ESTADO_MODOS:
+            dificuldade = interface.dificuldade_em(posicao, len(DIFICULDADES))
+            if dificuldade is not None:
+                self.indice_dificuldade = dificuldade
+                tocar(self.sons, "selecao")
+                return
             indice = interface.modo_em(posicao, len(MODOS))
             if indice is not None:
                 self.indice_modo = indice
@@ -636,6 +676,10 @@ class Jogo:
                 self.mover_modo(-1)
             elif botao in BOTOES_MENU_BAIXO:
                 self.mover_modo(1)
+            elif botao in BOTOES_MENU_ESQUERDA:
+                self.mover_dificuldade(-1)
+            elif botao in BOTOES_MENU_DIREITA:
+                self.mover_dificuldade(1)
             elif botao in BOTOES_INICIAR:
                 self.confirmar_modo()
             elif botao in (BOTAO_VOLTAR, BOTAO_MENU):
@@ -681,6 +725,7 @@ class Jogo:
 
     def comecar(self):
         self.modo = MODOS[self.indice_modo]
+        self.dificuldade = DIFICULDADES[self.indice_dificuldade]
         self.reiniciar()
         if self.modo.rounds:
             self.mostrar_aviso_chefe(f"ROUND {self.round}", "LUTEM", COR_ITEM)
@@ -844,14 +889,14 @@ class Jogo:
         # durante a luta contra o chefe os asteroides seguem vindo, um a um e mais espacados
         if self.chefe:
             intervalo = int(self.intervalo_spawn() * MULTIPLICADOR_SPAWN_CHEFE)
-            limite = MAX_ASTEROIDES_CHEFE
+            limite = MAX_ASTEROIDES_CHEFE * self.dificuldade.asteroides
         else:
             if not self.meteoros:
                 self.lancar_onda()
                 self.frames_ate_proximo_spawn = self.intervalo_spawn()
                 return
             intervalo = self.intervalo_spawn()
-            limite = MAX_ASTEROIDES
+            limite = MAX_ASTEROIDES * self.dificuldade.asteroides
 
         self.frames_ate_proximo_spawn -= 1
         if self.frames_ate_proximo_spawn <= 0:
@@ -862,7 +907,7 @@ class Jogo:
     def gerar_itens(self):
         self.tempo_ate_proximo_item -= 1
         if self.tempo_ate_proximo_item <= 0:
-            self.tempo_ate_proximo_item = random.randint(*INTERVALO_ESCUDO)
+            self.tempo_ate_proximo_item = self.intervalo_escudo()
             if len(self.itens) < MAX_ESCUDOS_NA_TELA:
                 self.itens.append(Item())
 
@@ -1020,13 +1065,13 @@ class Jogo:
         nave.vx, nave.vy = ux * 7, uy * 7
 
     def somar_pontos(self, jogador, pontos):
-        """Soma pontos e da uma vida extra a cada PONTOS_POR_VIDA (ate VIDAS_MAXIMAS)."""
+        """Soma pontos e da uma vida extra a cada PONTOS_POR_VIDA (ate o maximo de vidas)."""
         if not self.modo.pontua:
             return
         jogador.pontuacao += pontos
         while jogador.pontuacao >= jogador.pontos_proxima_vida:
             jogador.pontos_proxima_vida += PONTOS_POR_VIDA
-            if jogador.vivo and jogador.vidas < VIDAS_MAXIMAS:
+            if jogador.vivo and jogador.vidas < self.vidas_maximas:
                 jogador.vidas += 1
                 self.ondas.append(Onda(jogador.nave.x, jogador.nave.y, jogador.cor, raio_final=60, duracao=20))
                 tocar(self.sons, "item")
@@ -1074,7 +1119,7 @@ class Jogo:
             outro.vidas = VIDAS_REVIVER
             outro.tempo_eliminado = None
             outro.nave.tempo_escudo = 0
-            outro.nave.reaparecer(DURACAO_INVENCIVEL)
+            outro.nave.reaparecer(self.duracao_invencivel)
             x, y = outro.nave.x, outro.nave.y
             self.ondas.append(Onda(x, y, outro.cor, raio_final=90, duracao=26))
             self.ondas.append(Onda(x, y, (255, 255, 255), raio_final=50, duracao=16))
@@ -1116,7 +1161,7 @@ class Jogo:
             jogador.tempo_eliminado = self.tempo_partida
             nave.tempo_escudo = 0
         else:
-            nave.reaparecer(DURACAO_INVENCIVEL)
+            nave.reaparecer(self.duracao_invencivel)
 
     def criar_explosao(self, x, y, cor, quantidade):
         for _ in range(quantidade):
@@ -1195,7 +1240,7 @@ class Jogo:
         for jogador in self.jogadores:
             jogador.nave = self.criar_nave(jogador.indice)
             jogador.nave.reaparecer(DURACAO_INVENCIVEL // 2)
-            jogador.vidas = self.modo.vidas
+            jogador.vidas = self.vidas_iniciais()
             jogador.tempo_eliminado = None
         self.meteoros.clear()
         self.tiros.clear()
@@ -1204,7 +1249,7 @@ class Jogo:
         self.tempo_partida = 0
         self.nivel = 1
         self.frames_ate_proximo_spawn = INTERVALO_SPAWN_INICIAL
-        self.tempo_ate_proximo_item = random.randint(*INTERVALO_ESCUDO) // 2
+        self.tempo_ate_proximo_item = self.intervalo_escudo() // 2
         self.lancar_onda()
         self.estado = ESTADO_JOGANDO
         self.mostrar_aviso_chefe(f"ROUND {self.round}", "LUTEM", COR_ITEM)
@@ -1224,9 +1269,10 @@ class Jogo:
             return
         pontos = self.pontos_totais()
         if pontos > self.recorde:
-            self.recordes[self.modo.chave] = pontos
+            chave = chave_recorde(self.modo, self.dificuldade)
+            self.recordes[chave] = pontos
             self.novo_recorde = True
-            salvar_recorde(pontos, self.modo.chave)
+            salvar_recorde(pontos, chave)
 
     # ---------------------------------------------------------------- desenhar
     def desenhar(self):
@@ -1259,11 +1305,13 @@ class Jogo:
 
         if self.estado == ESTADO_INICIO:
             interface.desenhar_tela_inicio(
-                self.tela, self.fontes, self.recordes["solo"], self.frame, self.controles.nome()
+                self.tela, self.fontes, self.recordes[chave_recorde(MODOS[0], DIFICULDADES[self.indice_dificuldade])],
+                self.frame, self.controles.nome(), DIFICULDADES[self.indice_dificuldade].nome,
             )
         elif self.estado == ESTADO_MODOS:
             interface.desenhar_tela_modos(
-                self.tela, self.fontes, MODOS, self.indice_modo, len(self.controles.conectados)
+                self.tela, self.fontes, MODOS, self.indice_modo, len(self.controles.conectados),
+                DIFICULDADES, self.indice_dificuldade,
             )
         elif self.estado == ESTADO_LOBBY:
             livres = [
@@ -1381,6 +1429,7 @@ class Jogo:
         if modo.reviver:
             return [
                 (f"EQUIPE  {self.pontos_totais():06d}", COR_SECUNDARIA),
+                (f"DIFICULDADE  {self.dificuldade.nome}", COR_APAGADA),
                 (f"RECORDE  {self.recorde:06d}", COR_APAGADA),
             ]
         if modo.rounds:
@@ -1404,6 +1453,7 @@ class Jogo:
                 self.fundo.indice + 1,
                 self.novo_recorde,
                 self.frame,
+                self.dificuldade.nome,
             )
             return
 
@@ -1424,7 +1474,7 @@ class Jogo:
             rodape = [
                 f"EQUIPE  {self.pontos_totais():06d}",
                 "NOVO RECORDE" if self.novo_recorde else f"RECORDE  {self.recorde:06d}",
-                f"NIVEL {self.nivel:02d}   ·   SETOR {self.fundo.indice + 1:02d}",
+                f"NIVEL {self.nivel:02d}   ·   SETOR {self.fundo.indice + 1:02d}   ·   {self.dificuldade.nome}",
             ]
         else:
             if self.vencedor:

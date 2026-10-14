@@ -41,13 +41,17 @@ class Chefe(EntidadeColidivel):
     COR = (255, 84, 112)
     RAIO = 36
     VIDA_BASE = 40
+    # multiplicadores da dificuldade escolhida (o jogo define antes de criar cada chefe)
+    ajuste_vida: float = 1.0
+    ajuste_ritmo: float = 1.0
+    ajuste_velocidade: float = 1.0
 
     def __init__(self, ciclo: float = 0):
         super().__init__(LARGURA / 2, -self.RAIO * 2, self.RAIO)
         # quantas vezes a lista de chefes ja deu a volta; fracionario para que cada
         # chefe seja um pouco mais forte que o anterior (0.0, 0.05, 0.1 ... 1.0, 1.05 ...)
         self.ciclo: float = ciclo
-        self.vida_max: int = int(self.VIDA_BASE * FATOR_VIDA * (1 + 0.5 * ciclo))
+        self.vida_max: int = max(1, int(self.VIDA_BASE * FATOR_VIDA * (1 + 0.5 * ciclo) * self.ajuste_vida))
         self.vida: int = self.vida_max
         self.tempo: int = 0
         self.tempo_entrada: int = DURACAO_ENTRADA
@@ -144,7 +148,7 @@ class Chefe(EntidadeColidivel):
     # ------------------------------------------------------------ utilitarios
     def ritmo(self, frames):
         """Intervalo entre ataques: menor na fase furiosa e a cada volta do ciclo."""
-        fator = FATOR_INTERVALO * (FATOR_FURIOSO if self.furioso else 1.0) * 0.85 ** self.ciclo
+        fator = FATOR_INTERVALO * (FATOR_FURIOSO if self.furioso else 1.0) * 0.85 ** self.ciclo * self.ajuste_ritmo
         return max(4, int(frames * fator))
 
     def pronto(self, nome, intervalo) -> bool:
@@ -169,7 +173,7 @@ class Chefe(EntidadeColidivel):
         """Projetil em `angulo` (graus, 0 = direita, sentido horario na tela)."""
         rad = math.radians(angulo)
         x, y = origem or (self.x, self.y)
-        velocidade *= FATOR_VELOCIDADE * (1 + 0.15 * self.ciclo)
+        velocidade *= FATOR_VELOCIDADE * (1 + 0.15 * self.ciclo) * self.ajuste_velocidade
         return ProjetilChefe(x, y, math.cos(rad) * velocidade, math.sin(rad) * velocidade, self.COR, **extra)
 
     def rajada_circular(self, quantidade, velocidade, deslocamento=0.0):
