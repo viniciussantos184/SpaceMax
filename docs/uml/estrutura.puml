@@ -1,0 +1,81 @@
+@startwbs estrutura
+title SpaceMax - Estrutura do projeto (pastas, modulos e linhas de codigo)
+
+<style>
+wbsDiagram {
+  node {
+    FontName monospaced
+    FontSize 12
+    Padding 6
+    RoundCorner 6
+  }
+  .pasta {
+    BackgroundColor #DCE8F5
+    LineColor #2F5E8C
+  }
+  .nucleo {
+    BackgroundColor #FFE7C2
+    LineColor #B36B00
+  }
+  .entidade {
+    BackgroundColor #DFF2DF
+    LineColor #2E7D32
+  }
+  .ferramenta {
+    BackgroundColor #EDE3F7
+    LineColor #6A3D9A
+  }
+  .doc {
+    BackgroundColor #F2F2F2
+    LineColor #777777
+  }
+}
+</style>
+
+* SpaceMax/ <<pasta>>
+** main.py\n25 linhas - ponto de entrada <<nucleo>>
+** requirements.txt\npygame-ce <<doc>>
+** requirements-dev.txt\npy2puml <<doc>>
+** README.md <<doc>>
+** spacemax/ <<pasta>>
+*** jogo.py\n857 - classe Jogo: loop, regras, colisoes <<nucleo>>
+*** interface.py\n335 - HUD e telas <<nucleo>>
+*** galaxias.py\n484 - 35 setores procedurais <<nucleo>>
+*** controle.py\n135 - controles USB/bluetooth <<nucleo>>
+*** config.py\n119 - constantes <<nucleo>>
+*** sons.py\n66 - sons gerados por codigo <<nucleo>>
+*** melhorias.py\n43 - cartas de melhoria <<nucleo>>
+*** grafico.py\n36 - desenho vetorial <<nucleo>>
+*** recorde.py\n19 - recorde.txt <<nucleo>>
+*** entidades/ <<pasta>>
+**** base.py\n56 - Entidade, EntidadeColidivel <<entidade>>
+**** chefes.py\n916 - Chefe + chefes 01-09 <<entidade>>
+**** chefes_elite.py\n885 - chefes 10-20 <<entidade>>
+**** nave.py\n322 - Nave <<entidade>>
+**** projetil.py\n125 - ProjetilChefe <<entidade>>
+**** meteoro.py\n82 - Meteoro <<entidade>>
+**** tiro.py\n70 - Tiro, TiroExplosivo <<entidade>>
+**** item.py\n50 - Item <<entidade>>
+**** particula.py\n48 - Particula <<entidade>>
+**** onda.py\n44 - Onda <<entidade>>
+**** estrela.py\n34 - Estrela <<entidade>>
+** ferramentas/ <<pasta>>
+*** gerar_uml.py\n90 - gera os diagramas <<ferramenta>>
+*** validar_hierarquia.py\n96 - valida a heranca <<ferramenta>>
+*** testar_controle.py\n43 - testa o controle <<ferramenta>>
+** docs/ <<pasta>>
+*** uml/ <<pasta>>
+**** *.puml\nclasses, heranca, estrutura,\nestados, pacotes, sequencias <<doc>>
+**** gerado/\nclasses_py2puml.puml <<doc>>
+**** imagens/\nPNGs gerados <<doc>>
+*** sprints/\nplanejamento e cerimonias <<doc>>
+*** github.md\nvisualizacao do repositorio <<doc>>
+
+legend right
+  <back:#FFE7C2> nucleo do jogo </back>  9 modulos, 2.094 linhas
+  <back:#DFF2DF> entidades </back>  11 modulos, 2.632 linhas
+  <back:#EDE3F7> ferramentas </back>  3 scripts, 229 linhas
+  <back:#DCE8F5> pasta </back>   <back:#F2F2F2> docs / config </back>
+endlegend
+
+@endwbs

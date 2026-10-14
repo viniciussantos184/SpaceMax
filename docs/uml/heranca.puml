@@ -1,0 +1,249 @@
+@startuml heranca
+title SpaceMax - Diagrama de classes com heranca (pacote spacemax.entidades)
+
+skinparam classAttributeIconSize 0
+skinparam packageStyle folder
+skinparam linetype polyline
+skinparam nodesep 18
+skinparam ranksep 45
+hide empty members
+
+legend top right
+  |= Seta |= Significado |
+  | linha com triangulo vazio | a classe de baixo herda da de cima |
+  | <i>italico</i> / (A) | classe abstrata |
+  | membros listados | apenas o que a classe declara ou sobrescreve |
+  31 classes, 4 niveis de heranca
+endlegend
+
+' ------------------------------------------------------------- nivel 0
+abstract class Entidade {
+  + x: float
+  + y: float
+  --
+  + {abstract} atualizar()
+  + {abstract} desenhar(tela)
+}
+
+' ------------------------------------------------------------- nivel 1
+abstract class EntidadeColidivel {
+  + raio: float
+  + vx: float
+  + vy: float
+  --
+  + mover()
+  + atravessar_bordas()
+  + colide_com(outra): bool
+}
+
+class Estrela {
+  + tingir(cor)
+  + atualizar()
+  + desenhar(tela)
+}
+
+class Onda {
+  + progresso: float <<property>>
+  + terminou(): bool
+  + atualizar()
+  + desenhar(tela)
+}
+
+class Particula {
+  + morta(): bool
+  + atualizar()
+  + desenhar(tela)
+}
+
+Entidade <|-- EntidadeColidivel
+Entidade <|-- Estrela
+Entidade <|-- Onda
+Entidade <|-- Particula
+
+' ------------------------------------------------------------- nivel 2
+class Nave {
+  {static} RAIO = 13
+  + angulo: float
+  + tempo_escudo: int
+  + tempo_invencivel: int
+  --
+  + girar(direcao)
+  + acelerar() / frear() / dash()
+  + atirar(): list[Tiro]
+  + trocar_arma()
+  + aplicar_melhoria(chave)
+  + ativar_escudo()
+  + reaparecer()
+  + atualizar()
+  + desenhar(tela)
+}
+
+class Meteoro {
+  + tamanho: int  (3 grande, 2 medio, 1 pequeno)
+  --
+  + quebrar(): list[Meteoro]
+  + atualizar()
+  + desenhar(tela)
+}
+
+class Item {
+  {static} RAIO
+  {static} DURACAO
+  --
+  + expirou(): bool
+  + atualizar()
+  + desenhar(tela)
+}
+
+class Tiro {
+  {static} VELOCIDADE
+  {static} ALCANCE
+  {static} EXPLOSIVO = False
+  --
+  + expirou(): bool
+  + atualizar()
+  + desenhar(tela)
+}
+
+class ProjetilChefe {
+  + detonacao: int  (> 0 = mina)
+  + guiado: int  (> 0 = missil)
+  + destrutivel: bool  (drone)
+  --
+  + virar_para_alvo()
+  + detonar(): list[ProjetilChefe]
+  + expirou(): bool
+  + atualizar()
+  + desenhar(tela)
+}
+
+abstract class Chefe {
+  {static} NOME / COR / RAIO / VIDA_BASE
+  + vida: int
+  + vida_max: int
+  + alvo: (float, float)
+  --
+  + atualizar()
+  + atacar(): list[ProjetilChefe]
+  + receber_dano(qtd): bool
+  + furioso: bool <<property>>
+  .. ganchos sobrescritos pelas filhas ..
+  # mover_padrao()
+  # padrao_ataque(): list[ProjetilChefe]
+  # bloqueia(tiro): bool
+  # atinge(entidade): bool
+  # ponto_contato(entidade)
+  # ataque_continuo(nave): bool
+  # forca_sobre(nave)
+  # ao_bloquear(tiro)
+  .. abstrato (herdado) ..
+  + {abstract} desenhar(tela)
+}
+
+EntidadeColidivel <|-- Nave
+EntidadeColidivel <|-- Meteoro
+EntidadeColidivel <|-- Item
+EntidadeColidivel <|-- Tiro
+EntidadeColidivel <|-- ProjetilChefe
+EntidadeColidivel <|-- Chefe
+
+' ------------------------------------------------------------- nivel 3
+class TiroExplosivo {
+  {static} EXPLOSIVO = True
+  --
+  + desenhar(tela)
+}
+Tiro <|-- TiroExplosivo
+
+package "chefes.py  (niveis 5-45)" as P1 {
+  class Sentinela <<nivel 5>>
+  class Arpao <<nivel 10>>
+  class Orbita <<nivel 15>> {
+    + bloqueia() / atinge() / ponto_contato()
+  }
+  class Gemeos <<nivel 20>> {
+    + atinge() / ponto_contato()
+  }
+  class Prisma <<nivel 25>>
+  class Espectro <<nivel 30>> {
+    + receber_dano() / atinge()
+  }
+  class Nucleo <<nivel 35>>
+  class Vespa <<nivel 40>>
+  class Farol <<nivel 45>> {
+    + ataque_continuo()
+  }
+}
+
+package "chefes_elite.py  (niveis 50-100)" as P2 {
+  class Bastiao <<nivel 50>> {
+    + bloqueia()
+  }
+  class Serpente <<nivel 55>> {
+    + atualizar() / bloqueia()
+    + atinge() / ponto_contato()
+  }
+  class Colmeia <<nivel 60>>
+  class Espelho <<nivel 65>> {
+    + bloqueia() / atinge() / ao_bloquear()
+  }
+  class Pulsar <<nivel 70>> {
+    + ataque_continuo()
+  }
+  class Hidra <<nivel 75>> {
+    + bloqueia() / atinge()
+    + ponto_contato() / receber_dano()
+  }
+  class Miragem <<nivel 80>>
+  class Ciclone <<nivel 85>> {
+    + bloqueia() / ataque_continuo()
+  }
+  class Tempestade <<nivel 90>> {
+    + ataque_continuo()
+  }
+  class Singularidade <<nivel 95>> {
+    + forca_sobre()
+  }
+  class Imperador <<nivel 100>> {
+    + ataque_continuo()
+  }
+}
+
+Chefe <|-- Sentinela
+Chefe <|-- Arpao
+Chefe <|-- Orbita
+Chefe <|-- Gemeos
+Chefe <|-- Prisma
+Chefe <|-- Espectro
+Chefe <|-- Nucleo
+Chefe <|-- Vespa
+Chefe <|-- Farol
+Chefe <|-- Bastiao
+Chefe <|-- Serpente
+Chefe <|-- Colmeia
+Chefe <|-- Espelho
+Chefe <|-- Pulsar
+Chefe <|-- Hidra
+Chefe <|-- Miragem
+Chefe <|-- Ciclone
+Chefe <|-- Tempestade
+Chefe <|-- Singularidade
+Chefe <|-- Imperador
+
+note right of Chefe
+  <b>Template Method</b>: atualizar() e atacar()
+  ficam na base e chamam os ganchos
+  mover_padrao() e padrao_ataque().
+  Todos os 20 chefes sobrescrevem
+  mover_padrao(), padrao_ataque() e
+  desenhar(); nas caixas aparecem so
+  os ganchos extras de cada um.
+end note
+
+note bottom of Entidade
+  Polimorfismo: o Jogo guarda listas de
+  Entidade e chama atualizar()/desenhar()
+  sem saber a classe concreta.
+end note
+
+@enduml

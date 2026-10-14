@@ -243,9 +243,13 @@ SpaceMax/
 ├── main.py                 # ponto de entrada (apenas inicia o jogo)
 ├── requirements.txt
 ├── requirements-dev.txt    # dependencias de desenvolvimento (py2puml)
-├── docs/uml/               # diagramas PlantUML (.puml) e imagens geradas
+├── docs/
+│   ├── uml/                # diagramas PlantUML (.puml) e imagens geradas
+│   ├── sprints/            # planejamento, cerimonias e backlog das sprints
+│   └── github.md           # visualizacao do historico do repositorio
 ├── ferramentas/
 │   ├── gerar_uml.py        # gera os diagramas com py2puml + PlantUML
+│   ├── validar_hierarquia.py # valida a heranca das entidades
 │   └── testar_controle.py  # mostra no terminal os botoes lidos do controle
 └── spacemax/
     ├── config.py           # constantes: tela, paleta, fisica, dificuldade
@@ -269,8 +273,11 @@ SpaceMax/
         ├── chefes_elite.py # chefes 10-20 (niveis 50-100) e a ordem em que aparecem
         ├── projetil.py     # projeteis, minas, misseis e drones dos chefes
         ├── particula.py    # particulas de explosao
+        ├── onda.py         # ondas de choque
         └── estrela.py      # estrelas do cenario
 ```
+
+![Estrutura do projeto](docs/uml/imagens/estrutura.png)
 
 ## Diagramas UML (py2puml + PlantUML)
 
@@ -279,6 +286,8 @@ Os diagramas ficam em `docs/uml/`:
 | Arquivo | Conteudo |
 | --- | --- |
 | `classes.puml` | diagrama de classes completo (atributos, metodos e relacoes) |
+| `heranca.puml` | diagrama de classes com toda a heranca das entidades (31 classes) |
+| `estrutura.puml` | mapa de pastas e modulos, com tamanho em linhas |
 | `estados.puml` | maquina de estados do jogo (Inicio, Jogando, Game Over) |
 | `sequencia_partida.puml` | sequencia de uma partida completa (inicio, jogo, game over, reinicio) |
 | `sequencia_frame.puml` | sequencia de chamadas em um frame do jogo |
@@ -302,15 +311,27 @@ implementar, nenhum diagrama e gerado.
 ```
 Entidade (abstrata)            x, y, atualizar(), desenhar()
     +-- EntidadeColidivel (abstrata)   raio, vx, vy, mover(), colide_com()
+        +-- Chefe (abstrata)   vida, atacar(); ganchos mover_padrao(), padrao_ataque()
+            +-- Sentinela, Arpao, Orbita ... Imperador   (20 chefes)
         +-- Item
         +-- Meteoro
         +-- Nave
+        +-- ProjetilChefe
         +-- Tiro
+            +-- TiroExplosivo
     +-- Estrela
+    +-- Onda
     +-- Particula
 ```
 
+![Diagrama de heranca](docs/uml/imagens/heranca.png)
+
 ![Diagrama de classes](docs/uml/imagens/classes.png)
+
+## Gestao do projeto
+
+- [Sprint 4](docs/sprints/sprint4.md): planejamento, cerimonias e backlog
+- [Visualizacao do GitHub](docs/github.md): grafo de commits, autores e atividade
 
 ## Instalacao
 
