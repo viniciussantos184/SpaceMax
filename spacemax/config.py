@@ -117,6 +117,7 @@ FATOR_NIVEL_COOP = 1.5  # coop: os dois somam pontos, entao cada nivel pede mais
 # ---------------------------------------------------------------------------
 PASTA_PROJETO = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 CAMINHO_RECORDE = os.path.join(PASTA_PROJETO, "recorde.txt")  # recorde do modo solo
+CAMINHO_RANKING = os.path.join(PASTA_PROJETO, "ranking.json")  # pontuacao de cada jogador por partida
 
 # ---------------------------------------------------------------------------
 # Estados do jogo
@@ -127,5 +128,6 @@ ESTADO_LOBBY = "jogadores"  # multiplayer: cada jogador entra com seu controle /
 ESTADO_ROUND = "round"  # intervalo entre os rounds do duelo
 ESTADO_JOGANDO = "jogando"
 ESTADO_GAMEOVER = "gameover"
+ESTADO_NOME = "nome"  # fim de partida: cada jogador com pontos digita o nome para o ranking
 ESTADO_PAUSADO = "pausado"
 ESTADO_MELHORIA = "melhoria"  # escolhendo a melhoria do nivel novo

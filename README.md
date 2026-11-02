@@ -48,6 +48,15 @@ A invencibilidade apos perder uma vida tambem dura mais no Facil e no Medio. O r
 separado por dificuldade: o Dificil continua em `recorde.txt` / `recorde_coop.txt`, e os outros
 ficam em `recorde_solo_facil.txt`, `recorde_coop_medio.txt` etc.
 
+### Ranking
+
+Ao fim de cada partida cada jogador com pontos **digita o nome** (ate 10 caracteres; ENTER
+confirma, ESC pula e START/A do controle mantem o nome atual, que e lembrado nas proximas
+partidas). Em seguida a pontuacao de **cada jogador** e gravada em `ranking.json` com modo,
+dificuldade, nivel e data. Ao abandonar pelo menu de pausa, grava com o ultimo nome usado. A tela de Game Over mostra o top 5
+do modo e da dificuldade jogados, com as pontuacoes da partida em destaque. O ranking guarda as
+50 melhores de cada modo/dificuldade; o Duelo (que nao pontua) fica de fora.
+
 ### Teclas dos dois jogadores (mesmo teclado, ou com controles: veja abaixo)
 
 | Acao | Jogador 1 (ciano) | Jogador 2 (rosa) |

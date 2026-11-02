@@ -48,6 +48,7 @@ from .config import (
     ESTADO_LOBBY,
     ESTADO_MELHORIA,
     ESTADO_MODOS,
+    ESTADO_NOME,
     ESTADO_PAUSADO,
     ESTADO_ROUND,
     FATOR_NIVEL_COOP,
@@ -80,6 +81,7 @@ from .dificuldades import DIFICULDADE_PADRAO, DIFICULDADES, Dificuldade, chave_r
 from .galaxias import PlanoDeFundo, indice_galaxia
 from .jogador import TECLADO_JOGADOR1, TECLADO_JOGADOR2, TECLAS_SOLO, Dispositivo, Jogador
 from .modos import MODOS, Modo
+from .ranking import adicionar, carregar_ranking, melhores, nova_entrada, salvar_ranking
 from .recorde import carregar_recorde, salvar_recorde
 from .sons import criar_sons, tocar
 
@@ -94,6 +96,7 @@ TECLAS_MODO = {
     pygame.K_KP1: 0, pygame.K_KP2: 1, pygame.K_KP3: 2, pygame.K_KP4: 3, pygame.K_KP5: 4,
 }
 TECLAS_CONFIRMAR = (pygame.K_RETURN, pygame.K_KP_ENTER, pygame.K_SPACE)
+TAMANHO_NOME = 10
 TECLAS_PAUSA = (pygame.K_ESCAPE, pygame.K_p, pygame.K_RETURN, pygame.K_KP_ENTER)
 
 
@@ -117,6 +120,8 @@ class Jogo:
         self.recordes: dict[str, int] = {
             chave_recorde(m, d): carregar_recorde(chave_recorde(m, d)) for m in MODOS if m.recorde for d in DIFICULDADES
         }
+        self.ranking: list[dict] = carregar_ranking()
+        self.nomes: dict[int, str] = {}  # nome de cada jogador no ranking (lembrado entre partidas)
         # multiplayer: com o que cada jogador joga (None = vaga vazia na tela de jogadores)
         self.vagas: list[Dispositivo | None] = [None, None]
         self.fundo: PlanoDeFundo = PlanoDeFundo()
@@ -169,6 +174,9 @@ class Jogo:
         self.tremor: int = 0
         self.nivel: int = 1
         self.novo_recorde: bool = False
+        self.entradas_ranking: list[dict] = []  # pontuacoes desta partida ja gravadas no ranking
+        self.fila_nomes: list[Jogador] = []  # jogadores que ainda vao digitar o nome (o primeiro e o da vez)
+        self.nome_digitado: str = ""
         self.tempo_aviso_nivel: int = 0
         self.tempo_aviso_galaxia: int = DURACAO_AVISO_GALAXIA
         self.frames_ate_proximo_spawn: int = INTERVALO_SPAWN_INICIAL
@@ -217,6 +225,9 @@ class Jogo:
 
     def nome_jogador(self, jogador) -> str:
         return f"JOGADOR {jogador.indice + 1}"
+
+    def nome_ranking(self, jogador) -> str:
+        return self.nomes.get(jogador.indice) or self.nome_jogador(jogador)
 
     def alvo_mais_proximo(self, x, y) -> tuple[float, float]:
         """Posicao da nave viva mais perto de (x, y): para onde os chefes e misseis miram."""
@@ -593,6 +604,9 @@ class Jogo:
             elif tecla in (pygame.K_RETURN, pygame.K_KP_ENTER):
                 self.iniciar_do_lobby()
 
+        elif self.estado == ESTADO_NOME:
+            self.digitar_nome(evento)
+
         elif self.estado == ESTADO_GAMEOVER:
             if tecla == pygame.K_ESCAPE:
                 self.sair()
@@ -708,6 +722,12 @@ class Jogo:
             elif botao == BOTAO_TELA_CHEIA:
                 self.alternar_tela_cheia()
 
+        elif self.estado == ESTADO_NOME:
+            if botao == BOTAO_TELA_CHEIA:
+                self.alternar_tela_cheia()
+            elif botao in BOTOES_INICIAR and self.atraso_gameover <= 0:  # sem teclado: fica o nome atual
+                self.confirmar_nome()
+
         elif self.estado == ESTADO_GAMEOVER:
             if botao == BOTAO_TELA_CHEIA:
                 self.alternar_tela_cheia()
@@ -741,8 +761,9 @@ class Jogo:
         tocar(self.sons, "pausa")
 
     def voltar_ao_inicio(self):
-        """Abandona a partida (o recorde e salvo se tiver sido batido)."""
+        """Abandona a partida (o recorde e salvo se tiver sido batido e as pontuacoes vao para o ranking)."""
         self.registrar_recorde()
+        self.registrar_ranking()
         self.reiniciar()
         self.estado = ESTADO_INICIO
 
@@ -1256,12 +1277,69 @@ class Jogo:
 
     def fim_de_jogo(self, vencedor=None):
         self.vencedor = vencedor
-        self.estado = ESTADO_GAMEOVER
         self.atraso_gameover = ATRASO_GAMEOVER
         self.tiros.clear()
         self.itens.clear()
         self.projeteis.clear()
         self.registrar_recorde()
+        self.fila_nomes = [j for j in self.jogadores if j.pontuacao > 0] if self.modo.pontua else []
+        if self.fila_nomes:
+            self.estado = ESTADO_NOME
+            self.nome_digitado = self.nomes.get(self.fila_nomes[0].indice, "")
+        else:
+            self.estado = ESTADO_GAMEOVER
+
+    def digitar_nome(self, evento):
+        """Edita o nome do jogador da vez (ENTER confirma, ESC pula com o nome atual)."""
+        if self.atraso_gameover > 0:  # evita capturar as teclas de quem ainda estava jogando
+            return
+        tecla = evento.key
+        if tecla in (pygame.K_RETURN, pygame.K_KP_ENTER):
+            self.confirmar_nome()
+        elif tecla == pygame.K_ESCAPE:
+            while self.fila_nomes:
+                self.confirmar_nome()
+        elif tecla == pygame.K_BACKSPACE:
+            self.nome_digitado = self.nome_digitado[:-1]
+        else:
+            letra = evento.unicode
+            if letra and (letra.isalnum() or letra in " -_.") and len(self.nome_digitado) < TAMANHO_NOME:
+                self.nome_digitado += letra.upper()
+
+    def confirmar_nome(self):
+        """Guarda o nome digitado; depois do ultimo jogador grava no ranking e mostra o fim de jogo."""
+        jogador = self.fila_nomes.pop(0)
+        self.nomes[jogador.indice] = self.nome_digitado.strip() or self.nome_jogador(jogador)
+        if self.fila_nomes:
+            self.nome_digitado = self.nomes.get(self.fila_nomes[0].indice, "")
+            return
+        self.registrar_ranking()
+        self.estado = ESTADO_GAMEOVER
+        self.atraso_gameover = ATRASO_GAMEOVER
+
+    def registrar_ranking(self):
+        """Grava a pontuacao de cada jogador no ranking (uma vez por partida; duelo e jogo sem pontos ficam de fora)."""
+        if not self.modo.pontua or self.entradas_ranking:
+            return
+        novas = [
+            nova_entrada(self.nome_ranking(j), j.pontuacao, self.modo.chave, self.dificuldade.chave, self.nivel)
+            for j in self.jogadores if j.pontuacao > 0
+        ]
+        if not novas:
+            return
+        self.ranking = adicionar(self.ranking, novas)
+        self.entradas_ranking = novas
+        salvar_ranking(self.ranking)
+
+    def linhas_ranking(self) -> list[tuple[int, str, int, bool]]:
+        """Top 5 do modo e da dificuldade atuais: (posicao, nome, pontos, e_desta_partida)."""
+        if not self.modo.pontua:
+            return []
+        top = melhores(self.ranking, self.modo.chave, self.dificuldade.chave)
+        return [
+            (i + 1, e["nome"], e["pontos"], any(e is nova for nova in self.entradas_ranking))
+            for i, e in enumerate(top)
+        ]
 
     def registrar_recorde(self):
         """Modos com recorde guardam os pontos da partida (no coop, da equipe)."""
@@ -1333,6 +1411,12 @@ class Jogo:
                     self.tela, self.fontes, self.nivel, self.opcoes_melhoria, jogador.nave.melhorias,
                     self.selecao_melhoria, self.tempo_tela_melhoria >= ATRASO_ESCOLHA,
                     (self.nome_jogador(jogador), jogador.cor) if self.modo.multi else None,
+                )
+            if self.estado == ESTADO_NOME:
+                jogador = self.fila_nomes[0]
+                interface.desenhar_tela_nome(
+                    self.tela, self.fontes, self.nome_jogador(jogador), jogador.cor, jogador.pontuacao,
+                    self.nome_digitado, TAMANHO_NOME, self.frame, len(self.fila_nomes) > 1,
                 )
             if self.estado == ESTADO_GAMEOVER:
                 self.desenhar_fim_de_jogo()
@@ -1454,6 +1538,7 @@ class Jogo:
                 self.novo_recorde,
                 self.frame,
                 self.dificuldade.nome,
+                self.linhas_ranking(),
             )
             return
 
@@ -1482,7 +1567,8 @@ class Jogo:
             else:
                 titulo, cor = "EMPATE", COR_ITEM
             rodape = []
-        interface.desenhar_tela_fim_multi(self.tela, self.fontes, modo.nome, titulo, cor, colunas, rodape, self.frame)
+        interface.desenhar_tela_fim_multi(self.tela, self.fontes, modo.nome, titulo, cor, colunas, rodape, self.frame,
+                                          self.linhas_ranking())
 
     # ------------------------------------------------------------------- loop
     def executar(self):

@@ -372,7 +372,41 @@ def desenhar_tela_melhoria(tela, fontes, nivel, opcoes, niveis_atuais, seleciona
     )
 
 
-def desenhar_tela_gameover(tela, fontes, pontuacao, recorde, nivel, setor, novo_recorde, frame, dificuldade=""):
+def desenhar_tela_nome(tela, fontes, rotulo, cor, pontos, nome, tamanho, frame, tem_proximo):
+    """Pede o nome do jogador para o ranking."""
+    escurecer_tela(tela, 170)
+    desenhar_cantoneiras(tela, cor, tamanho=22)
+
+    cy = ALTURA / 2
+    desenhar_texto(tela, fontes.pequena, espacar("RANKING"), LARGURA / 2, cy - 110, COR_APAGADA)
+    desenhar_texto(tela, fontes.grande, espacar(rotulo), LARGURA / 2, cy - 78, cor)
+    desenhar_texto(tela, fontes.media, f"{pontos:06d} PONTOS", LARGURA / 2, cy - 38, COR_SECUNDARIA)
+
+    desenhar_texto(tela, fontes.pequena, espacar("DIGITE SEU NOME"), LARGURA / 2, cy + 6, COR_APAGADA)
+    cursor = "_" if (frame // 30) % 2 == 0 else " "
+    campo = f"{nome}{cursor}".ljust(tamanho + 1)
+    desenhar_texto(tela, fontes.grande, campo, LARGURA / 2, cy + 40, COR_PRIMARIA)
+    largura = 22 * (tamanho + 1)
+    pygame.draw.line(tela, COR_PRIMARIA, (LARGURA / 2 - largura / 2, cy + 62), (LARGURA / 2 + largura / 2, cy + 62))
+
+    confirmar = "ENTER PARA " + ("CONFIRMAR E PASSAR AO PROXIMO JOGADOR" if tem_proximo else "CONFIRMAR")
+    desenhar_texto(tela, fontes.pequena, confirmar, LARGURA / 2, cy + 96, COR_SECUNDARIA)
+    desenhar_texto(tela, fontes.pequena, "ESC PARA PULAR  ·  START / A MANTEM O NOME", LARGURA / 2, cy + 118, COR_APAGADA)
+
+
+def desenhar_ranking(tela, fontes, linhas, y):
+    """Top do ranking a partir de `y`. `linhas`: [(posicao, nome, pontos, e_desta_partida)]."""
+    if not linhas:
+        return
+    desenhar_texto(tela, fontes.pequena, espacar("RANKING"), LARGURA / 2, y, COR_APAGADA)
+    for k, (posicao, nome, pontos, atual) in enumerate(linhas):
+        cor = COR_ITEM if atual else COR_SECUNDARIA
+        desenhar_texto(tela, fontes.pequena, f"{posicao}.  {nome:<10}  {pontos:06d}", LARGURA / 2, y + 20 + k * 17, cor)
+
+
+def desenhar_tela_gameover(
+    tela, fontes, pontuacao, recorde, nivel, setor, novo_recorde, frame, dificuldade="", ranking=()
+):
     escurecer_tela(tela, 170)
     desenhar_cantoneiras(tela, COR_PERIGO, tamanho=22)
 
@@ -395,9 +429,10 @@ def desenhar_tela_gameover(tela, fontes, pontuacao, recorde, nivel, setor, novo_
         desenhar_texto(tela, fontes.pequena, f"DIFICULDADE  {dificuldade}", LARGURA / 2, cy + 46, COR_APAGADA)
     _prompt_piscando(tela, fontes, "ESPACO / START PARA JOGAR NOVAMENTE", cy + 90, frame)
     desenhar_texto(tela, fontes.pequena, "M / SELECT PARA ESCOLHER OUTRO MODO", LARGURA / 2, cy + 122, COR_APAGADA)
+    desenhar_ranking(tela, fontes, ranking, cy + 160)
 
 
-def desenhar_tela_fim_multi(tela, fontes, modo_nome, titulo, cor, colunas, rodape, frame):
+def desenhar_tela_fim_multi(tela, fontes, modo_nome, titulo, cor, colunas, rodape, frame, ranking=()):
     """Fim de partida com dois jogadores.
 
     `colunas`: [(nome, cor, [linhas])], uma por jogador; `rodape`: linhas extras abaixo."""
@@ -420,6 +455,7 @@ def desenhar_tela_fim_multi(tela, fontes, modo_nome, titulo, cor, colunas, rodap
 
     _prompt_piscando(tela, fontes, "ESPACO / START PARA JOGAR NOVAMENTE", cy + 140, frame)
     desenhar_texto(tela, fontes.pequena, "M / SELECT PARA ESCOLHER OUTRO MODO", LARGURA / 2, cy + 172, COR_APAGADA)
+    desenhar_ranking(tela, fontes, ranking, cy + 196)
 
 
 # ---------------------------------------------------------------------------
